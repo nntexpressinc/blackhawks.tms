@@ -117,18 +117,18 @@ const DriverViewPage = () => {
   const [roles, setRoles] = useState([]);
 
   const payColumns = [
-    { 
-      field: 'index', 
-      headerName: 'No.', 
+    {
+      field: 'index',
+      headerName: 'No.',
       width: 70,
       valueGetter: (params) => {
         const rowIndex = filteredPayData.findIndex(row => row.id === params.row.id);
         return rowIndex + 1;
       }
     },
-    { 
-      field: 'pay_type', 
-      headerName: 'Payment Type', 
+    {
+      field: 'pay_type',
+      headerName: 'Payment Type',
       width: 130,
       valueGetter: (params) => {
         const types = {
@@ -139,39 +139,39 @@ const DriverViewPage = () => {
         return types[params.row.pay_type] || params.row.pay_type;
       }
     },
-    { 
-      field: 'currency', 
-      headerName: 'Currency', 
+    {
+      field: 'currency',
+      headerName: 'Currency',
       width: 100,
       valueGetter: (params) => 'USD'
     },
-    { 
-      field: 'standart', 
-      headerName: 'Standard', 
+    {
+      field: 'standart',
+      headerName: 'Standard',
       width: 100,
       valueGetter: (params) => params.row.standart || '-'
     },
-    { 
-      field: 'additional_charges', 
-      headerName: 'Additional Charges', 
+    {
+      field: 'additional_charges',
+      headerName: 'Additional Charges',
       width: 150,
       valueGetter: (params) => params.row.additional_charges || '-'
     },
-    { 
-      field: 'picks_per', 
-      headerName: 'Picks Per', 
+    {
+      field: 'picks_per',
+      headerName: 'Picks Per',
       width: 100,
       valueGetter: (params) => params.row.picks_per || '-'
     },
-    { 
-      field: 'drops_per', 
-      headerName: 'Drops Per', 
+    {
+      field: 'drops_per',
+      headerName: 'Drops Per',
       width: 100,
       valueGetter: (params) => params.row.drops_per || '-'
     },
-    { 
-      field: 'wait_time', 
-      headerName: 'Wait Time', 
+    {
+      field: 'wait_time',
+      headerName: 'Wait Time',
       width: 120,
       valueGetter: (params) => params.row.wait_time || '-'
     },
@@ -187,7 +187,7 @@ const DriverViewPage = () => {
             </IconButton>
           </Tooltip>
           <Tooltip title="Delete">
-            <IconButton 
+            <IconButton
               onClick={() => {
                 setSelectedItem(params.row);
                 setItemType('pay');
@@ -203,9 +203,9 @@ const DriverViewPage = () => {
   ];
 
   const expenseColumns = [
-    { 
-      field: 'index', 
-      headerName: 'No.', 
+    {
+      field: 'index',
+      headerName: 'No.',
       width: 70,
       valueGetter: (params) => {
         const rowIndex = filteredExpenseData.findIndex(row => row.id === params.row.id);
@@ -216,9 +216,10 @@ const DriverViewPage = () => {
     { field: 'amount', headerName: 'Amount', width: 100 },
     { field: 'transaction_type', headerName: 'Type', width: 80 },
     { field: 'expense_date', headerName: 'Date', width: 120 },
-    { 
-      field: 'created_at', 
-      headerName: 'Created At', 
+
+    {
+      field: 'created_at',
+      headerName: 'Created At',
       width: 180,
       valueGetter: (params) => {
         if (!params.row.created_at) return '-';
@@ -229,6 +230,18 @@ const DriverViewPage = () => {
           day: '2-digit'
         });
       }
+    },
+    {
+      field: 'invoice_number',
+      headerName: 'Invoice',
+      width: 130,
+      valueGetter: (params) => params.row.invoice_number || '-'
+    },
+    {
+      field: 'weekly_number',
+      headerName: 'Week',
+      width: 130,
+      valueGetter: (params) => params.row.weekly_number || '-'
     },
     {
       field: 'actions',
@@ -242,7 +255,7 @@ const DriverViewPage = () => {
             </IconButton>
           </Tooltip>
           <Tooltip title="Delete">
-            <IconButton 
+            <IconButton
               onClick={() => {
                 setSelectedItem(params.row);
                 setItemType('expense');
@@ -266,7 +279,7 @@ const DriverViewPage = () => {
           ApiService.getData(`${ENDPOINTS.DRIVER_EXPENSE}?driver=${id}`),
           ApiService.getData(`/auth/role/`)
         ]);
-        
+
         setDriverData(driver);
         setRoles(rolesData);
 
@@ -522,9 +535,9 @@ const DriverViewPage = () => {
                 >
                   Create Payment
                 </Button>
-                <Button 
-                  size="small" 
-                  variant="outlined" 
+                <Button
+                  size="small"
+                  variant="outlined"
                   onClick={() => exportToExcel(filteredPayData, 'payments.xlsx')}
                 >
                   Excel
@@ -559,9 +572,9 @@ const DriverViewPage = () => {
                 >
                   Create Expense
                 </Button>
-                <Button 
-                  size="small" 
-                  variant="outlined" 
+                <Button
+                  size="small"
+                  variant="outlined"
                   onClick={() => exportToExcel(filteredExpenseData, 'expenses.xlsx')}
                 >
                   Excel
