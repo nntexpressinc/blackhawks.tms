@@ -1,0 +1,268 @@
+.accounting-page {
+  padding: 20px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.section-title {
+  color: #2c3e50;
+  margin-bottom: 30px;
+  font-size: 24px;
+  font-weight: 600;
+}
+
+.search-section {
+  background: #fff;
+  padding: 25px;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  margin-bottom: 30px;
+}
+
+.search-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 20px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.form-group label {
+  font-weight: 500;
+  color: #4a5568;
+}
+
+.form-group input,
+.form-group select,
+.form-group textarea {
+  padding: 10px;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  font-size: 14px;
+  transition: border-color 0.2s;
+}
+
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+  border-color: #4299e1;
+  outline: none;
+}
+
+.button-group {
+  display: flex;
+  gap: 15px;
+  margin-top: 20px;
+}
+
+.btn {
+  padding: 12px 24px;
+  border-radius: 6px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: none;
+}
+
+.btn-primary {
+  background-color: #4299e1;
+  color: white;
+}
+
+.btn-primary:hover {
+  background-color: #3182ce;
+}
+
+.btn-secondary {
+  background-color: #48bb78;
+  color: white;
+}
+
+.btn-secondary:hover {
+  background-color: #38a169;
+}
+
+.btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.error-message {
+  color: #e53e3e;
+  padding: 10px;
+  background-color: #fff5f5;
+  border-radius: 6px;
+  margin-top: 10px;
+}
+
+.report-section {
+  background: #fff;
+  padding: 25px;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.report-header {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 30px;
+  margin-bottom: 30px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.company-info h3 {
+  color: #2d3748;
+  margin-bottom: 15px;
+  font-size: 20px;
+}
+
+.company-info p {
+  color: #4a5568;
+  margin: 5px 0;
+  font-size: 14px;
+}
+
+.driver-info h4,
+.expenses-section h4,
+.loads-section h4 {
+  color: #2d3748;
+  margin-bottom: 15px;
+  font-size: 18px;
+}
+
+.info-grid {
+  display: grid;
+  gap: 12px;
+}
+
+.info-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+}
+
+.info-item label {
+  color: #718096;
+  font-weight: 500;
+}
+
+.info-item span {
+  color: #2d3748;
+}
+
+.table-container {
+  overflow-x: auto;
+  margin: 20px 0;
+}
+
+.loads-table,
+.expenses-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 20px 0;
+}
+
+.loads-table th,
+.expenses-table th {
+  background-color: #f7fafc;
+  color: #4a5568;
+  font-weight: 600;
+  text-align: left;
+  padding: 12px;
+  border-bottom: 2px solid #e2e8f0;
+}
+
+.loads-table td,
+.expenses-table td {
+  padding: 12px;
+  border-bottom: 1px solid #e2e8f0;
+  color: #4a5568;
+}
+
+.loads-table tr:hover,
+.expenses-table tr:hover {
+  background-color: #f7fafc;
+}
+
+.total-pay {
+  font-weight: 600;
+  color: #2d3748;
+}
+
+.summary-section {
+  margin-top: 30px;
+  padding-top: 20px;
+  border-top: 1px solid #e2e8f0;
+}
+
+.summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 20px;
+}
+
+.summary-item {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 15px;
+  background-color: #f7fafc;
+  border-radius: 6px;
+}
+
+.summary-item label {
+  color: #718096;
+  font-weight: 500;
+}
+
+.summary-item span {
+  color: #2d3748;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.summary-item.total {
+  background-color: #ebf8ff;
+}
+
+.summary-item.total span {
+  color: #2b6cb0;
+}
+
+@media (max-width: 768px) {
+  .accounting-page {
+    padding: 10px;
+  }
+
+  .form-row {
+    grid-template-columns: 1fr;
+  }
+
+  .report-header {
+    grid-template-columns: 1fr;
+  }
+
+  .summary-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .button-group {
+    flex-direction: column;
+  }
+
+  .btn {
+    width: 100%;
+  }
+} 
