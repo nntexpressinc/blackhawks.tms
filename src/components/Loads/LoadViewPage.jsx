@@ -2371,6 +2371,7 @@ const LoadViewPage = () => {
     return url.replace('https://0.0.0.0:8000/', 'https://blackhawks.biznes-armiya.uz/');
   };
   
+  
   // Handle view file
   const handleViewFile = (url, fileName) => {
     if (!url) return;
