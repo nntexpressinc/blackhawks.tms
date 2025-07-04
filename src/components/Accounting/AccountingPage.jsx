@@ -336,7 +336,7 @@ const AccountingPage = () => {
                     <th>{t('Amount')}</th>
                     <th>{t('Created At')}</th>
                     <th>{t('File')}</th>
-                    <th>{t('CD File')}</th>
+                    {/* <th>{t('CD File')}</th> */}
                     <th>{t('Actions')}</th>
                   </tr>
                 </thead>
@@ -374,13 +374,13 @@ const AccountingPage = () => {
                               rel="noopener noreferrer"
                               className="file-link"
                             >
-                              {t('View PDF')}
+                              {t('View File')}
                             </a>
                           ) : (
                             <span className="no-file">{t('No file')}</span>
                           )}
                         </td>
-                        <td>
+                        {/* <td>
                           {pay.file ? (
                             <a
                               href={getFullPdfUrl(pay.cd_file)}
@@ -393,7 +393,7 @@ const AccountingPage = () => {
                           ) : (
                             <span className="no-file">{t('No file')}</span>
                           )}
-                        </td>
+                        </td> */}
                         <td>
                           <button
                             className="btn btn-sm btn-primary"
@@ -559,13 +559,13 @@ const AccountingPage = () => {
                 )}
                 <input type="file" onChange={e => handleFileChange(e, 'file')} style={{ marginTop: 4 }} />
               </div>
-              <div style={{ marginBottom: 6 }}>
+              {/* <div style={{ marginBottom: 6 }}>
                 <label style={{ color: '#4a5568', fontWeight: 500, marginBottom: 2, display: 'block' }}>{t('CD File')}</label>
                 {editData.cd_file && typeof editData.cd_file === 'string' && (
                   <button type="button" onClick={() => handleDownloadFile(editData.cd_file)} style={{ marginRight: 10, background: '#4d9ef0', color: '#fff', border: 'none', borderRadius: 4, padding: '4px 10px', fontSize: 13, cursor: 'pointer' }}>{t('Download')}</button>
                 )}
                 <input type="file" onChange={e => handleFileChange(e, 'cd_file')} style={{ marginTop: 4 }} />
-              </div>
+              </div> */}
               {error && <div className="error-message">{error}</div>}
               <div style={{ display: 'flex', gap: 10, marginTop: 10, justifyContent: 'flex-end' }}>
                 <button className="btn btn-primary" onClick={handleSaveEdit} disabled={loading}>{t('Save')}</button>
