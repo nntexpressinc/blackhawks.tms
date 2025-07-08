@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import Select from 'react-select';
 import { getDrivers, getDriverPayList, getDriverPayReport, uploadPayReportPDF } from '../../api/accounting';
@@ -171,7 +171,21 @@ const AccountingPage = () => {
     }
   };
 
-  // handleSearch and resetSearch are no longer needed
+  // Jadval uchun front-endda search filter
+  const filteredDriverPayList = useMemo(() => {
+    if (!searchQuery.trim()) return driverPayList;
+    const query = searchQuery.trim().toLowerCase();
+    return driverPayList.filter(pay => {
+      const invoice = (pay.invoice_number || '').toLowerCase();
+      const weekly = (pay.weekly_number || '').toLowerCase();
+      const driverName = ((pay.driver?.user?.first_name || '') + ' ' + (pay.driver?.user?.last_name || '')).toLowerCase();
+      return (
+        invoice.includes(query) ||
+        weekly.includes(query) ||
+        driverName.includes(query)
+      );
+    });
+  }, [searchQuery, driverPayList]);
 
   const validateFields = () => {
     if (!dateRange.startDate || !dateRange.endDate) {
@@ -343,115 +357,101 @@ const AccountingPage = () => {
     <div className="accounting-page">
       {!showCreateForm ? (
         <div className="list-section">
-          <div className="section-header">
-            <h2 className="section-title">{t('Driver Pay Reports')}</h2>
+          <div className="section-header-flex">
+            <h2 className="section-title">Driver Pay Reports</h2>
             <button
-              className="btn btn-primary"
+              className="btn btn-gradient-primary"
               onClick={() => setShowCreateForm(true)}
             >
-              {t('Create New Report')}
+              <span className="btn-icon">➕</span> Create New Report
             </button>
           </div>
 
-          <div className="search-section">
-            <div className="search-row">
+          <div className="search-section" style={{ marginBottom: 18 }}>
+            <div className="search-row-flex" style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
               <div className="form-group" style={{ width: '100%' }}>
-                <label>{t('Search')}</label>
+                <label style={{ fontWeight: 500, color: '#2c3e50', marginBottom: 4 }}>Search</label>
                 <input
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder={t('Search by invoice number, weekly number, or driver name')}
-                // No need for onKeyPress or buttons
+                  placeholder="Search by invoice number, weekly number, or driver name"
+                  style={{
+                    width: '100%',
+                    padding: '10px 14px',
+                    border: '1px solid #e2e8f0',
+                    borderRadius: 8,
+                    fontSize: 15,
+                    background: '#f9fafb',
+                    outline: 'none',
+                    marginTop: 2
+                  }}
                 />
               </div>
             </div>
           </div>
 
           <div className="table-section">
-            <div className="table-container">
-              <table className="pay-list-table">
-                <thead>
+            <div className="table-container" style={{ borderRadius: 12, overflow: 'hidden', boxShadow: '0 2px 12px 0 rgba(0,0,0,0.04)' }}>
+              <table className="pay-list-table" style={{ width: '100%', borderCollapse: 'collapse', background: '#fff' }}>
+                <thead style={{ background: '#f3f4f6' }}>
                   <tr>
-                    <th>{t('Invoice #')}</th>
-                    <th>{t('Weekly #')}</th>
-                    <th>{t('Driver')}</th>
-                    <th>{t('Pay Period')}</th>
-                    <th>{t('Amount')}</th>
-                    <th>{t('Created At')}</th>
-                    <th>{t('File')}</th>
-                    {/* <th>{t('CD File')}</th> */}
-                    <th>{t('Actions')}</th>
+                    <th style={{ padding: '12px 8px', fontWeight: 600, color: '#374151' }}>Invoice #</th>
+                    <th style={{ padding: '12px 8px', fontWeight: 600, color: '#374151' }}>Weekly #</th>
+                    <th style={{ padding: '12px 8px', fontWeight: 600, color: '#374151' }}>Driver</th>
+                    <th style={{ padding: '12px 8px', fontWeight: 600, color: '#374151' }}>Pay Period</th>
+                    <th style={{ padding: '12px 8px', fontWeight: 600, color: '#374151' }}>Amount</th>
+                    <th style={{ padding: '12px 8px', fontWeight: 600, color: '#374151' }}>Created At</th>
+                    <th style={{ padding: '12px 8px', fontWeight: 600, color: '#374151' }}>File</th>
+                    <th style={{ padding: '12px 8px', fontWeight: 600, color: '#374151' }}>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {loading ? (
                     <tr>
-                      <td colSpan="8" className="text-center">
-                        {t('Loading...')}
+                      <td colSpan="8" className="text-center" style={{ textAlign: 'center', padding: 24 }}>
+                        Loading...
                       </td>
                     </tr>
-                  ) : driverPayList.length > 0 ? (
-                    driverPayList.map((pay) => (
-                      <tr className="pay-list-row" key={pay.id}>
-                        <td>{pay.invoice_number || t('N/A')}</td>
-                        <td>{pay.weekly_number || t('N/A')}</td>
-                        <td>
-                          {pay.driver?.user?.first_name || ''} {pay.driver?.user?.last_name || ''}
-                        </td>
-                        <td>
-                          {pay.pay_from && pay.pay_to
-                            ? `${moment(pay.pay_from).format('MM/DD/YYYY')} - ${moment(pay.pay_to).format('MM/DD/YYYY')}`
-                            : t('N/A')}
-                        </td>
-                        <td>{formatAmount(pay.amount)}</td>
-                        <td>
-                          {pay.created_at
-                            ? moment(pay.created_at).format('MM/DD/YYYY HH:mm')
-                            : t('N/A')}
-                        </td>
-                        <td>
+                  ) : filteredDriverPayList.length > 0 ? (
+                    filteredDriverPayList.map((pay) => (
+                      <tr className="pay-list-row" key={pay.id} style={{ borderBottom: '1px solid #f1f1f1' }}>
+                        <td style={{ padding: '10px 8px' }}>{pay.invoice_number || 'N/A'}</td>
+                        <td style={{ padding: '10px 8px' }}>{pay.weekly_number || 'N/A'}</td>
+                        <td style={{ padding: '10px 8px' }}>{pay.driver?.user?.first_name || ''} {pay.driver?.user?.last_name || ''}</td>
+                        <td style={{ padding: '10px 8px' }}>{pay.pay_from && pay.pay_to ? `${moment(pay.pay_from).format('MM/DD/YYYY')} - ${moment(pay.pay_to).format('MM/DD/YYYY')}` : 'N/A'}</td>
+                        <td style={{ padding: '10px 8px' }}>{formatAmount(pay.amount)}</td>
+                        <td style={{ padding: '10px 8px' }}>{pay.created_at ? moment(pay.created_at).format('MM/DD/YYYY HH:mm') : 'N/A'}</td>
+                        <td style={{ padding: '10px 8px' }}>
                           {pay.file ? (
                             <a
                               href={getFullPdfUrl(pay.file)}
                               target="_blank"
                               rel="noopener noreferrer"
                               className="file-link"
+                              style={{ color: '#2563eb', textDecoration: 'underline', fontWeight: 500 }}
                             >
-                              {t('View File')}
+                              View File
                             </a>
                           ) : (
-                            <span className="no-file">{t('No file')}</span>
+                            <span className="no-file" style={{ color: '#b91c1c' }}>No file</span>
                           )}
                         </td>
-                        {/* <td>
-                          {pay.file ? (
-                            <a
-                              href={getFullPdfUrl(pay.cd_file)}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="file-link"
-                            >
-                              {t('View PDF')}
-                            </a>
-                          ) : (
-                            <span className="no-file">{t('No file')}</span>
-                          )}
-                        </td> */}
-                        <td>
+                        <td style={{ padding: '10px 8px' }}>
                           <button
                             className="btn btn-sm btn-primary"
+                            style={{ background: '#2563eb', color: '#fff', border: 'none', borderRadius: 6, padding: '6px 16px', fontSize: 14, cursor: 'pointer', fontWeight: 500 }}
                             onClick={() => handleViewEdit(pay)}
                           >
-                            {t('View')}
+                            View
                           </button>
                         </td>
                       </tr>
                     ))
                   ) : (
                     <tr>
-                      <td colSpan="8" className="text-center">
-                        {t('No driver pay reports found')}
+                      <td colSpan="8" className="text-center" style={{ textAlign: 'center', padding: 24 }}>
+                        No driver pay reports found
                       </td>
                     </tr>
                   )}
@@ -459,21 +459,20 @@ const AccountingPage = () => {
               </table>
             </div>
           </div>
-
         </div>
       ) : (
         <div className="create-form-section">
-          <div className="section-header">
-            <h2 className="section-title">{t('Create Driver Pay Report')}</h2>
+          <div className="section-header-flex">
+            <h2 className="section-title">Create Driver Pay Report</h2>
             <button
-              className="btn btn-secondary"
+              className="btn btn-gradient-secondary"
               onClick={() => {
                 setShowCreateForm(false);
                 setReportData(null);
                 setError('');
               }}
             >
-              {t('Back to List')}
+              <span className="btn-icon">←</span> Back to List
             </button>
           </div>
 
@@ -550,28 +549,48 @@ const AccountingPage = () => {
               {/* Yangi load_driver_pay va load_company_driver_pay uchun multi-select */}
               <div className="form-row">
                 <div className="form-group">
-                  <label htmlFor="loadDriverPay">{t('Load Driver Pay (tanlang, optional)')}</label>
+                  <label htmlFor="loadDriverPay">Load Driver Pay (select, optional)</label>
                   <Select
                     isMulti
-                    options={loads.map(load => ({ value: load.id, label: `Load #${load.id}` }))}
-                    value={loadDriverPay.map(id => ({ value: id, label: `Load #${id}` }))}
+                    options={loads.map(load => ({
+                      value: load.id,
+                      label: `Load #${load.load_id || load.id} | Reference: ${load.reference_id || '-'}`
+                    }))}
+                    value={loadDriverPay.map(id => {
+                      const found = loads.find(load => load.id === id);
+                      return found ? {
+                        value: found.id,
+                        label: `Load #${found.load_id || found.id} | Reference: ${found.reference_id || '-'}`
+                      } : { value: id, label: `Load #${id}` };
+                    })}
                     onChange={handleLoadDriverPayChange}
-                    className="basic-multi-select"
+                    className="modern-multi-select"
                     classNamePrefix="select"
+                    placeholder="Select loads..."
                   />
-                  <small>{t('Bir nechta load tanlash mumkin')}</small>
+                  <small>You can select multiple loads</small>
                 </div>
                 <div className="form-group">
-                  <label htmlFor="loadCompanyDriverPay">{t('Load Company Driver Pay (tanlang, optional)')}</label>
+                  <label htmlFor="loadCompanyDriverPay">Load Company Driver Pay (select, optional)</label>
                   <Select
                     isMulti
-                    options={loads.map(load => ({ value: load.id, label: `Load #${load.id}` }))}
-                    value={loadCompanyDriverPay.map(id => ({ value: id, label: `Load #${id}` }))}
+                    options={loads.map(load => ({
+                      value: load.id,
+                      label: `Load #${load.load_id || load.id} | Reference: ${load.reference_id || '-'}`
+                    }))}
+                    value={loadCompanyDriverPay.map(id => {
+                      const found = loads.find(load => load.id === id);
+                      return found ? {
+                        value: found.id,
+                        label: `Load #${found.load_id || found.id} | Reference: ${found.reference_id || '-'}`
+                      } : { value: id, label: `Load #${id}` };
+                    })}
                     onChange={handleLoadCompanyDriverPayChange}
-                    className="basic-multi-select"
+                    className="modern-multi-select"
                     classNamePrefix="select"
+                    placeholder="Select loads..."
                   />
-                  <small>{t('Bir nechta load tanlash mumkin')}</small>
+                  <small>You can select multiple loads</small>
                 </div>
               </div>
               {error && <div className="error-message">{error}</div>}
