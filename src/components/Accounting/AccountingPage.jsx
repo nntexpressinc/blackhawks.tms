@@ -563,7 +563,7 @@ const AccountingPage = () => {
                         label: `Load #${found.load_id || found.id} | Reference: ${found.reference_id || '-'}`
                       } : { value: id, label: `Load #${id}` };
                     })}
-                    onChange={handleLoadDriverPayChange}
+                    onChange={selectedOptions => setLoadDriverPay(selectedOptions ? selectedOptions.map(opt => opt.value) : [])}
                     className="modern-multi-select"
                     classNamePrefix="select"
                     placeholder="Select loads..."
@@ -585,7 +585,7 @@ const AccountingPage = () => {
                         label: `Load #${found.load_id || found.id} | Reference: ${found.reference_id || '-'}`
                       } : { value: id, label: `Load #${id}` };
                     })}
-                    onChange={handleLoadCompanyDriverPayChange}
+                    onChange={selectedOptions => setLoadCompanyDriverPay(selectedOptions ? selectedOptions.map(opt => opt.value) : [])}
                     className="modern-multi-select"
                     classNamePrefix="select"
                     placeholder="Select loads..."
