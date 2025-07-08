@@ -350,41 +350,6 @@ const PayReport = ({ reportData }) => {
         <Header reportData={reportData} />
         <View style={styles.content}>
           <Text style={styles.title}>Driver Pay Report</Text>
-          {/* Company Driver Data Section */}
-          {reportData.company_driver_data && (
-            <View style={styles.section} wrap={false}>
-              <Text style={styles.sectionTitle}>Company Driver Data</Text>
-              <View style={{marginBottom: 8}}>
-                <Text>Total Miles: {reportData.company_driver_data.total_miles}</Text>
-                <Text>Miles Rate: {reportData.company_driver_data.miles_rate}</Text>
-                <Text>Company Driver Pay: {reportData.company_driver_data.company_driver_pay}</Text>
-              </View>
-              {Array.isArray(reportData.company_driver_data.loads_detail) && reportData.company_driver_data.loads_detail.length > 0 && (
-                <View style={styles.table}>
-                  <View style={styles.tableRow}>
-                    <Text style={[styles.tableCol, {width:'15%'}]}>Load #</Text>
-                    <Text style={[styles.tableCol, {width:'20%'}]}>Loaded Miles</Text>
-                    <Text style={[styles.tableCol, {width:'30%'}]}>Pickup</Text>
-                    <Text style={[styles.tableCol, {width:'30%'}]}>Delivery</Text>
-                  </View>
-                  {reportData.company_driver_data.loads_detail.map((ld, idx) => (
-                    <View key={idx} style={styles.tableRow}>
-                      <Text style={[styles.tableCol, {width:'15%'}]}>{ld.load_number}</Text>
-                      <Text style={[styles.tableCol, {width:'20%'}]}>{ld.loaded_miles}</Text>
-                      <Text style={[styles.tableCol, {width:'30%'}]}>{ld.pickup_location}</Text>
-                      <Text style={[styles.tableCol, {width:'30%'}]}>{ld.delivery_location}</Text>
-                    </View>
-                  ))}
-                </View>
-              )}
-              {reportData.company_driver_data.calculation_summary && (
-                <View style={{marginTop:8}}>
-                  <Text>Summary: {reportData.company_driver_data.calculation_summary.formula}</Text>
-                  <Text>Loads Count: {reportData.company_driver_data.calculation_summary.loads_count}</Text>
-                </View>
-              )}
-            </View>
-          )}
           {/* Loads Section */}
           <View className="section">
             {reportData.loads?.map((load, index) => (

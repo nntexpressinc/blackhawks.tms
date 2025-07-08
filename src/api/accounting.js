@@ -82,6 +82,8 @@ export const getDriverPayReport = async (data) => {
         notes: data.notes || '',
         invoice_number: data.invoice_number || '',
         weekly_number: data.weekly_number || '',
+        load_driver_pay: data.load_driver_pay || [],
+        load_company_driver_pay: data.load_company_driver_pay || [],
       },
       {
         headers: {
@@ -155,6 +157,24 @@ export const downloadPayReportPDF = async (data) => {
     return response.data;
   } catch (error) {
     console.error('Error downloading PDF:', error.message);
+    throw error;
+  }
+};
+
+export const getAllLoads = async () => {
+  try {
+    const storedAccessToken = localStorage.getItem('accessToken');
+    if (!storedAccessToken) {
+      throw new Error('No access token found');
+    }
+    const response = await axios.get(`${API_URL}/load/`, {
+      headers: {
+        Authorization: `Bearer ${storedAccessToken}`,
+      },
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching loads:', error.message);
     throw error;
   }
 };

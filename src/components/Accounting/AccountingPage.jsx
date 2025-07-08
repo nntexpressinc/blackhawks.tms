@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
+import Select from 'react-select';
 import { getDrivers, getDriverPayList, getDriverPayReport, uploadPayReportPDF } from '../../api/accounting';
+import { getAllLoads } from '../../api/loads';
 import { pdf } from '@react-pdf/renderer';
 import PayReportPDF from './PayReportPDF';
 import CompanyDriverPDF from './CompanyDriverPDF';
@@ -19,13 +21,17 @@ const ensureArray = (data) => {
 const AccountingPage = () => {
   const { t } = useTranslation();
   const [loading, setLoading] = useState(false);
+  
   const [reportData, setReportData] = useState(null);
   const [dateRange, setDateRange] = useState({ startDate: '', endDate: '' });
   const [selectedDriver, setSelectedDriver] = useState('');
   const [notes, setNotes] = useState('');
   const [invoiceNumber, setInvoiceNumber] = useState('');
   const [weeklyNumber, setWeeklyNumber] = useState('');
+  const [loadDriverPay, setLoadDriverPay] = useState([]); 
+  const [loadCompanyDriverPay, setLoadCompanyDriverPay] = useState([]);
   const [drivers, setDrivers] = useState([]);
+  const [loads, setLoads] = useState([]);
   const [error, setError] = useState('');
   const [driverPayList, setDriverPayList] = useState([]);
   const [showCreateForm, setShowCreateForm] = useState(false);
@@ -53,7 +59,21 @@ const AccountingPage = () => {
       }
     };
 
+    const fetchLoads = async () => {
+      try {
+        const data = await getAllLoads();
+        if (isMounted) {
+          setLoads(ensureArray(data));
+        }
+      } catch (err) {
+        if (isMounted) {
+          setLoads([]);
+        }
+      }
+    };
+
     fetchDrivers();
+    fetchLoads();
 
     return () => {
       isMounted = false;
@@ -187,7 +207,15 @@ const AccountingPage = () => {
         notes: notes || '',
         invoice_number: invoiceNumber,
         weekly_number: weeklyNumber,
+        load_driver_pay: Array.isArray(loadDriverPay) ? loadDriverPay : [],
+        load_company_driver_pay: Array.isArray(loadCompanyDriverPay) ? loadCompanyDriverPay : [],
       };
+      
+      console.log('Sending report request with data:', {
+        ...requestData,
+        load_driver_pay_length: requestData.load_driver_pay.length,
+        load_company_driver_pay_length: requestData.load_company_driver_pay.length,
+      });
 
       const response = await getDriverPayReport(requestData);
       console.log('Report data received:', response);
@@ -206,43 +234,45 @@ const AccountingPage = () => {
 
   const generateAndUploadPDF = async (reportData) => {
     try {
-      // 1. Main PDF
-      const blob = await pdf(<PayReportPDF reportData={reportData} />).toBlob();
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `driver-pay-report-${moment().format('YYYY-MM-DD')}.pdf`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
+      // 1. Generate and download Driver Pay PDF
+      const driverPayBlob = await pdf(<PayReportPDF reportData={reportData} />).toBlob();
+      const driverPayUrl = window.URL.createObjectURL(driverPayBlob);
+      const driverPayLink = document.createElement('a');
+      driverPayLink.href = driverPayUrl;
+      driverPayLink.download = `driver-pay-report-${moment().format('YYYY-MM-DD')}.pdf`;
+      document.body.appendChild(driverPayLink);
+      driverPayLink.click();
+      document.body.removeChild(driverPayLink);
+      window.URL.revokeObjectURL(driverPayUrl);
+      
+      // Upload driver pay PDF to server if pay_id exists
       if (reportData.pay_id) {
-        await uploadPayReportPDF(reportData.pay_id, blob);
-        console.log('PDF successfully uploaded to server');
+        await uploadPayReportPDF(reportData.pay_id, driverPayBlob);
+        console.log('Driver Pay PDF successfully uploaded to server');
       }
 
-      // 2. Company Driver PDF (if exists)
+      // 2. Generate and download Company Driver PDF if data exists
       if (reportData.company_driver_data) {
-        const companyBlob = await pdf(
-          <CompanyDriverPDF
+        const companyDriverBlob = await pdf(
+          <CompanyDriverPDF 
             data={reportData.company_driver_data}
             driver={reportData.driver}
             search_from={reportData.driver?.search_from}
             search_to={reportData.driver?.search_to}
           />
         ).toBlob();
-        const companyUrl = window.URL.createObjectURL(companyBlob);
-        const companyLink = document.createElement('a');
-        companyLink.href = companyUrl;
-        companyLink.download = `company-driver-report-${moment().format('YYYY-MM-DD')}.pdf`;
-        document.body.appendChild(companyLink);
-        companyLink.click();
-        document.body.removeChild(companyLink);
-        window.URL.revokeObjectURL(companyUrl);
-        // Optionally upload to server if needed (if backend supports)
-        // await uploadPayReportPDF(reportData.pay_id, companyBlob);
+        const companyDriverUrl = window.URL.createObjectURL(companyDriverBlob);
+        const companyDriverLink = document.createElement('a');
+        companyDriverLink.href = companyDriverUrl;
+        companyDriverLink.download = `company-driver-report-${moment().format('YYYY-MM-DD')}.pdf`;
+        document.body.appendChild(companyDriverLink);
+        companyDriverLink.click();
+        document.body.removeChild(companyDriverLink);
+        window.URL.revokeObjectURL(companyDriverUrl);
+        console.log('Company Driver PDF generated and downloaded');
       }
 
+      // Reset form and update list
       fetchDriverPayList();
       setShowCreateForm(false);
       setReportData(null);
@@ -293,6 +323,20 @@ const AccountingPage = () => {
     }
     if (isNaN(num)) return '$0.00';
     return '$' + num.toFixed(2);
+  };
+
+  // Handle load selection for driver pay
+  const handleLoadDriverPayChange = (selectedOptions) => {
+    const selectedIds = selectedOptions ? selectedOptions.map(option => option.value) : [];
+    console.log('Selected driver pay loads:', selectedIds);
+    setLoadDriverPay(selectedIds);
+  };
+
+  // Handle load selection for company driver pay
+  const handleLoadCompanyDriverPayChange = (selectedOptions) => {
+    const selectedIds = selectedOptions ? selectedOptions.map(option => option.value) : [];
+    console.log('Selected company driver pay loads:', selectedIds);
+    setLoadCompanyDriverPay(selectedIds);
   };
 
   return (
@@ -501,6 +545,33 @@ const AccountingPage = () => {
                     value={notes}
                     onChange={(e) => setNotes(e.target.value)}
                   />
+                </div>
+              </div>
+              {/* Yangi load_driver_pay va load_company_driver_pay uchun multi-select */}
+              <div className="form-row">
+                <div className="form-group">
+                  <label htmlFor="loadDriverPay">{t('Load Driver Pay (tanlang, optional)')}</label>
+                  <Select
+                    isMulti
+                    options={loads.map(load => ({ value: load.id, label: `Load #${load.id}` }))}
+                    value={loadDriverPay.map(id => ({ value: id, label: `Load #${id}` }))}
+                    onChange={handleLoadDriverPayChange}
+                    className="basic-multi-select"
+                    classNamePrefix="select"
+                  />
+                  <small>{t('Bir nechta load tanlash mumkin')}</small>
+                </div>
+                <div className="form-group">
+                  <label htmlFor="loadCompanyDriverPay">{t('Load Company Driver Pay (tanlang, optional)')}</label>
+                  <Select
+                    isMulti
+                    options={loads.map(load => ({ value: load.id, label: `Load #${load.id}` }))}
+                    value={loadCompanyDriverPay.map(id => ({ value: id, label: `Load #${id}` }))}
+                    onChange={handleLoadCompanyDriverPayChange}
+                    className="basic-multi-select"
+                    classNamePrefix="select"
+                  />
+                  <small>{t('Bir nechta load tanlash mumkin')}</small>
                 </div>
               </div>
               {error && <div className="error-message">{error}</div>}

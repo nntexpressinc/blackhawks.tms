@@ -8,6 +8,11 @@ body {
   box-sizing: border-box;
 }
 
+/* Accounting page specific styles */
+.accounting-page .pay-list-table-body-tr {
+  padding-top: 10px !important;
+  padding-bottom: 10px !important;
+}
 .pay-list-table-body-tr {
   padding-top: 10px!important;
   padding-bottom: 10px;
