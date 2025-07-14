@@ -115,6 +115,12 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
       icon: <MdAccountBalance />,
       link: "/accounting",
     },
+    {
+      id: 10,
+      title: t("IFTA"),
+      icon: <MdAccountBalance />,
+      link: "/ifta",
+    },
     // {kodni 
     //   id: 10,
     //   title: t("Profile"),

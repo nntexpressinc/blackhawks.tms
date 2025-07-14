@@ -44,6 +44,7 @@ import DispatcherViewPage from "./components/Dispatcher/DispatcherViewPage";
 import DispatcherEditPage from "./components/Dispatcher/DispatcherEditPage";
 import EmployeeViewPage from "./components/Employee/EmployeeViewPage";
 import EmployeeEditPage from "./components/Employee/EmployeeEditPage";
+import IftaPage from "./components/IFTA/IftaPage";
 
 const App = () => {
   const { isAuthenticated: isAuth } = useAuth();
@@ -340,6 +341,14 @@ const App = () => {
               element={
                 <PrivateRoute>
                   <AccountingPage />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="ifta"
+              element={
+                <PrivateRoute>
+                  <IftaPage />
                 </PrivateRoute>
               }
             />
