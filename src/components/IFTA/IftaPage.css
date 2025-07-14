@@ -212,6 +212,28 @@
   border-bottom: none;
 }
 
+/* Quarter group styles */
+.quarter-group {
+  margin-bottom: 20px;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.quarter-header {
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.quarter-header:hover {
+  background: linear-gradient(135deg, #e9ecef 0%, #dee2e6 100%);
+}
+
+.quarter-header h3 {
+  font-size: 18px;
+  color: #007bff !important;
+}
+
 /* State records in modal */
 .state-records {
   border: 1px solid #e0e0e0;

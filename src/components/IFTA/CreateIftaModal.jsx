@@ -1,15 +1,15 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { createIftaBulk } from '../../api/ifta';
 
-const CreateIftaModal = ({ drivers, quarters, states, onClose, onSuccess }) => {
+const CreateIftaModal = ({ drivers, quarters, states, onClose, onSuccess, preSelectedDriver }) => {
   const { t } = useTranslation();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [formData, setFormData] = useState({
     quarter: '',
     weekly_number: '',
-    driver: '',
+    driver: preSelectedDriver || '',
     ifta_records: [
       {
         state: '',
@@ -19,6 +19,16 @@ const CreateIftaModal = ({ drivers, quarters, states, onClose, onSuccess }) => {
       }
     ]
   });
+
+  // If preSelectedDriver changes, update formData
+  useEffect(() => {
+    if (preSelectedDriver) {
+      setFormData(prev => ({
+        ...prev,
+        driver: preSelectedDriver
+      }));
+    }
+  }, [preSelectedDriver]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -85,10 +95,7 @@ const CreateIftaModal = ({ drivers, quarters, states, onClose, onSuccess }) => {
         setError(`Please enter total miles for record ${i + 1}`);
         return false;
       }
-      if (!record.invoice_number) {
-        setError(`Please enter invoice number for record ${i + 1}`);
-        return false;
-      }
+
     }
     
     setError('');
@@ -168,22 +175,24 @@ const CreateIftaModal = ({ drivers, quarters, states, onClose, onSuccess }) => {
             </div>
           </div>
 
-          <div className="form-group">
-            <label>Driver *</label>
-            <select
-              name="driver"
-              value={formData.driver}
-              onChange={handleInputChange}
-              required
-            >
-              <option value="">Select Driver</option>
-              {drivers.map(driver => (
-                <option key={driver.id} value={driver.id}>
-                  {driver.first_name} {driver.last_name}
-                </option>
-              ))}
-            </select>
-          </div>
+          {!preSelectedDriver && (
+            <div className="form-group">
+              <label>Driver *</label>
+              <select
+                name="driver"
+                value={formData.driver}
+                onChange={handleInputChange}
+                required
+              >
+                <option value="">Select Driver</option>
+                {drivers.map(driver => (
+                  <option key={driver.id} value={driver.id}>
+                    {driver.user.first_name} {driver.user.last_name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
           <h3>State Records</h3>
           
@@ -245,12 +254,11 @@ const CreateIftaModal = ({ drivers, quarters, states, onClose, onSuccess }) => {
                 </div>
 
                 <div className="form-group">
-                  <label>Invoice Number *</label>
+                  <label>Invoice Number</label>
                   <input
                     type="text"
                     value={record.invoice_number}
                     onChange={(e) => handleStateRecordChange(index, 'invoice_number', e.target.value)}
-                    
                   />
                 </div>
               </div>

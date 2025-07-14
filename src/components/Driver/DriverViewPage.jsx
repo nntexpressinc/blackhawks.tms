@@ -1,38 +1,54 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
+import EditIftaModal from '../IFTA/EditIftaModal';
+import CreateIftaModal from '../IFTA/CreateIftaModal';
+// Add Toastify and its CSS
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
+
+// Move API service import inside src
+import { ApiService } from '../../api/auth';
+
 import {
   Box,
+  Button,
+  IconButton,
   Typography,
   Paper,
   Tabs,
   Tab,
-  Button,
-  IconButton,
-  Tooltip,
-  Grid,
-  Divider,
-  Chip,
   Dialog,
   DialogTitle,
   DialogContent,
   DialogActions,
-  Alert,
-  Snackbar,
+  Avatar,
+  Grid,
+  Divider,
   CircularProgress,
-  Avatar
+  Alert,
+  Tooltip,
 } from '@mui/material';
 import { DataGrid } from '@mui/x-data-grid';
-import { ApiService, ENDPOINTS } from '../../api/auth';
-import { toast } from 'react-hot-toast';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import AddIcon from '@mui/icons-material/Add';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
-import DriverPDF from './DriverPDF';
+import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import { saveAs } from 'file-saver';
 import * as XLSX from 'xlsx';
 import { pdf } from '@react-pdf/renderer';
-import ContentCopyIcon from '@mui/icons-material/ContentCopy';
+import DriverPDF from './DriverPDF';
+
+// Add ENDPOINTS object
+const ENDPOINTS = {
+  DRIVER_DETAIL: (id) => `/driver/${id}/`,
+  USER_DETAIL: (id) => `/auth/user/${id}/`,
+  DRIVER_PAY: '/driver/pay/',
+  DRIVER_PAY_DETAIL: (id) => `/driver/pay/${id}/`,
+  DRIVER_EXPENSE: '/driver/expense/',
+  DRIVER_EXPENSE_DETAIL: (id) => `/driver/expense/${id}/`,
+  DISPATCHER_DETAIL: (id) => `/dispatcher/${id}/`,
+};
 
 const US_STATES = [
   { code: 'AL', name: 'Alabama' },
@@ -115,6 +131,10 @@ const DriverViewPage = () => {
   const [selectedItem, setSelectedItem] = useState(null);
   const [itemType, setItemType] = useState('');
   const [roles, setRoles] = useState([]);
+  const [iftaRecords, setIftaRecords] = useState([]);
+  const [showIftaModal, setShowIftaModal] = useState(false);
+  const [selectedIftaRecord, setSelectedIftaRecord] = useState(null);
+  const [showEditIftaModal, setShowEditIftaModal] = useState(false);
 
   const payColumns = [
     {
@@ -273,15 +293,17 @@ const DriverViewPage = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [driver, pay, expense, rolesData] = await Promise.all([
+        const [driver, pay, expense, rolesData, iftaData] = await Promise.all([
           ApiService.getData(ENDPOINTS.DRIVER_DETAIL(id)),
           ApiService.getData(`${ENDPOINTS.DRIVER_PAY}?driver=${id}`),
           ApiService.getData(`${ENDPOINTS.DRIVER_EXPENSE}?driver=${id}`),
-          ApiService.getData(`/auth/role/`)
+          ApiService.getData(`/auth/role/`),
+          ApiService.getData(`/ifta?driver=${id}`)
         ]);
 
         setDriverData(driver);
         setRoles(rolesData);
+        setIftaRecords(iftaData);
 
         if (driver.user && typeof driver.user === 'number') {
           const user = await ApiService.getData(ENDPOINTS.USER_DETAIL(driver.user));
@@ -335,11 +357,24 @@ const DriverViewPage = () => {
     navigate(`/driver/${id}/expense/create`);
   };
 
-  const handleDelete = async () => {
-    if (!selectedItem) return;
+  const handleEditIftaRecord = (record) => {
+    setSelectedIftaRecord(record);
+    setShowEditIftaModal(true);
+  };
 
+  const handleDeleteIftaRecord = (record) => {
+    setSelectedIftaRecord(record);
+    setItemType('ifta');
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDelete = async () => {
     try {
-      if (itemType === 'pay') {
+      if (itemType === 'ifta') {
+        await ApiService.deleteData(`/ifta/${selectedIftaRecord.id}/`);
+        setIftaRecords(iftaRecords.filter(record => record.id !== selectedIftaRecord.id));
+        toast.success('IFTA record deleted successfully');
+      } else if (itemType === 'pay') {
         await ApiService.deleteData(ENDPOINTS.DRIVER_PAY_DETAIL(selectedItem.id));
         setPayData(payData.filter(pay => pay.id !== selectedItem.id));
         toast.success('Payment deleted successfully');
@@ -348,9 +383,9 @@ const DriverViewPage = () => {
         setExpenseData(expenseData.filter(expense => expense.id !== selectedItem.id));
         toast.success('Expense deleted successfully');
       }
-    } catch (err) {
-      console.error('Delete error:', err);
-      toast.error(`Failed to delete ${itemType === 'pay' ? 'payment' : 'expense'}`);
+    } catch (error) {
+      console.error('Error deleting record:', error);
+      toast.error('Error deleting record');
     } finally {
       setDeleteDialogOpen(false);
       setSelectedItem(null);
@@ -407,6 +442,7 @@ const DriverViewPage = () => {
 
   return (
     <Box sx={{ p: 3 }}>
+      <ToastContainer />
       <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 3 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
           <IconButton onClick={() => navigate('/driver')}>
@@ -438,6 +474,7 @@ const DriverViewPage = () => {
           <Tab label="Driver Information" />
           <Tab label="Payments" />
           <Tab label="Expenses" />
+          <Tab label="IFTA" />
         </Tabs>
         {tabValue === 0 && driverData && driverData.user && (
           <Box sx={{ p: 3 }}>
@@ -596,15 +633,157 @@ const DriverViewPage = () => {
             />
           </Box>
         )}
+        {tabValue === 4 && (
+          <Box sx={{ p: 3 }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+              <Typography variant="h5" sx={{ fontWeight: 600 }}>IFTA Records</Typography>
+              <Button
+                variant="contained"
+                startIcon={<AddIcon />}
+                onClick={() => setShowIftaModal(true)}
+                size="small"
+              >
+                Create IFTA Record
+              </Button>
+            </Box>
+            <DataGrid
+              rows={iftaRecords}
+              columns={[
+                {
+                  field: 'quarter',
+                  headerName: 'Quarter',
+                  width: 150
+                },
+                {
+                  field: 'weekly_number',
+                  headerName: 'Week Number',
+                  width: 150
+                },
+                {
+                  field: 'created_at',
+                  headerName: 'Created At',
+                  width: 200,
+                  valueGetter: (params) => {
+                    return new Date(params.row.created_at).toLocaleDateString();
+                  }
+                },
+                {
+                  field: 'records',
+                  headerName: 'States',
+                  width: 200,
+                  valueGetter: (params) => {
+                    return params.row.ifta_records
+                      ? params.row.ifta_records.map(r => r.state).join(', ')
+                      : '-';
+                  }
+                },
+                {
+                  field: 'total_miles',
+                  headerName: 'Total Miles',
+                  width: 150,
+                  valueGetter: (params) => {
+                    return params.row.ifta_records
+                      ? params.row.ifta_records.reduce((sum, r) => sum + parseFloat(r.total_miles || 0), 0)
+                      : 0;
+                  }
+                },
+                {
+                  field: 'tax_paid_gallon',
+                  headerName: 'Tax Paid Gallons',
+                  width: 150,
+                  valueGetter: (params) => {
+                    return params.row.ifta_records
+                      ? params.row.ifta_records.reduce((sum, r) => sum + parseFloat(r.tax_paid_gallon || 0), 0)
+                      : 0;
+                  }
+                },
+                {
+                  field: 'actions',
+                  headerName: 'Actions',
+                  width: 120,
+                  renderCell: (params) => (
+                    <Box>
+                      <IconButton
+                        size="small"
+                        onClick={() => handleEditIftaRecord(params.row)}
+                      >
+                        <EditIcon fontSize="small" />
+                      </IconButton>
+                      <IconButton
+                        size="small"
+                        onClick={() => handleDeleteIftaRecord(params.row)}
+                      >
+                        <DeleteIcon fontSize="small" color="error" />
+                      </IconButton>
+                    </Box>
+                  )
+                }
+              ]}
+              autoHeight
+              getRowId={(row) => row.id}
+              pageSize={10}
+              sx={{
+                borderRadius: 2,
+                boxShadow: 2,
+                border: '1px solid #e0e0e0',
+                background: '#fafbfc',
+              }}
+            />
+          </Box>
+        )}
       </Paper>
+
+      {/* IFTA Edit Modal */}
+      {showEditIftaModal && (
+        <EditIftaModal
+          record={selectedIftaRecord}
+          drivers={[driverData]}
+          quarters={[
+            { value: 'Quorter 1', label: 'Q1 (Jan-Mar)' },
+            { value: 'Quorter 2', label: 'Q2 (Apr-Jun)' },
+            { value: 'Quorter 3', label: 'Q3 (Jul-Sep)' },
+            { value: 'Quorter 4', label: 'Q4 (Oct-Dec)' }
+          ]}
+          states={US_STATES}
+          onClose={() => setShowEditIftaModal(false)}
+          onSuccess={(updatedRecord) => {
+            setIftaRecords(iftaRecords.map(record => 
+              record.id === updatedRecord.id ? updatedRecord : record
+            ));
+            setShowEditIftaModal(false);
+            toast.success('IFTA record updated successfully');
+          }}
+        />
+      )}
+
+      {/* IFTA Create Modal */}
+      {showIftaModal && (
+        <CreateIftaModal
+          preSelectedDriver={parseInt(id, 10)}
+          drivers={[driverData]}
+          quarters={[
+            { value: 'Quorter 1', label: 'Q1 (Jan-Mar)' },
+            { value: 'Quorter 2', label: 'Q2 (Apr-Jun)' },
+            { value: 'Quorter 3', label: 'Q3 (Jul-Sep)' },
+            { value: 'Quorter 4', label: 'Q4 (Oct-Dec)' }
+          ]}
+          states={US_STATES}
+          onClose={() => setShowIftaModal(false)}
+          onSuccess={(newRecord) => {
+            setIftaRecords([...iftaRecords, newRecord]);
+            setShowIftaModal(false);
+            toast.success('IFTA record created successfully');
+          }}
+        />
+      )}
 
       <Dialog
         open={deleteDialogOpen}
         onClose={() => setDeleteDialogOpen(false)}
       >
-        <DialogTitle>Delete {itemType === 'pay' ? 'Payment' : 'Expense'}</DialogTitle>
+        <DialogTitle>Delete {itemType === 'pay' ? 'Payment' : itemType === 'expense' ? 'Expense' : 'IFTA Record'}</DialogTitle>
         <DialogContent>
-          Are you sure you want to delete this {itemType === 'pay' ? 'payment' : 'expense'}?
+          Are you sure you want to delete this {itemType === 'pay' ? 'payment' : itemType === 'expense' ? 'expense' : 'IFTA record'}?
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setDeleteDialogOpen(false)}>Cancel</Button>
@@ -615,4 +794,4 @@ const DriverViewPage = () => {
   );
 };
 
-export default DriverViewPage; 
+export default DriverViewPage;

@@ -8,7 +8,7 @@ import CreateFuelTaxRatesModal from './CreateFuelTaxRatesModal';
 import './IftaPage.css';
 
 const IftaPage = () => {
-  // const { t } = useTranslation(); // Translation not used yet
+  const { t } = useTranslation();
   const [iftaRecords, setIftaRecords] = useState([]);
   const [fuelTaxRates, setFuelTaxRates] = useState([]);
   const [expandedQuarters, setExpandedQuarters] = useState({});
@@ -40,6 +40,7 @@ const IftaPage = () => {
     { code: 'IA', name: 'Iowa' },
     { code: 'KS', name: 'Kansas' },
     { code: 'KY', name: 'Kentucky' },
+    { code: 'KY Surcharge', name: 'Kentucky Surcharge' },
     { code: 'LA', name: 'Louisiana' },
     { code: 'ME', name: 'Maine' },
     { code: 'MD', name: 'Maryland' },
@@ -76,10 +77,10 @@ const IftaPage = () => {
   ];
 
   const QUARTERS = [
-    { value: 'Quarter 1', label: 'Quarter 1' },
-    { value: 'Quarter 2', label: 'Quarter 2' },
-    { value: 'Quarter 3', label: 'Quarter 3' },
-    { value: 'Quarter 4', label: 'Quarter 4' },
+    { value: 'Quorter 1', label: 'Quarter 1 (Jan-Mar)' },
+    { value: 'Quorter 2', label: 'Quarter 2 (Apr-Jun)' },
+    { value: 'Quorter 3', label: 'Quarter 3 (Jul-Sep)' },
+    { value: 'Quorter 4', label: 'Quarter 4 (Oct-Dec)' },
   ];
 
   useEffect(() => {
@@ -190,10 +191,10 @@ const IftaPage = () => {
     return driver ? `${driver.user.first_name} ${driver.user.last_name}` : 'Unknown';
   };
 
-  // const formatAmount = (amount) => {
-  //   if (!amount) return '$0.00';
-  //   return `$${parseFloat(amount).toFixed(2)}`;
-  // };
+  const formatAmount = (amount) => {
+    if (!amount) return '$0.00';
+    return `$${parseFloat(amount).toFixed(2)}`;
+  };
 
   if (loading) {
     return <div className="loading">Loading IFTA records...</div>;
