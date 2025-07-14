@@ -8,7 +8,7 @@ export const getIftaRecords = async () => {
     if (!storedAccessToken) {
       throw new Error('No access token found');
     }
-    const response = await axios.get(`${API_URL}/api/ifta/`, {
+    const response = await axios.get(`${API_URL}/ifta/`, {
       headers: {
         Authorization: `Bearer ${storedAccessToken}`,
       },
@@ -26,7 +26,7 @@ export const getIftaRecordById = async (id) => {
     if (!storedAccessToken) {
       throw new Error('No access token found');
     }
-    const response = await axios.get(`${API_URL}/api/ifta/${id}/`, {
+    const response = await axios.get(`${API_URL}/ifta/${id}/`, {
       headers: {
         Authorization: `Bearer ${storedAccessToken}`,
       },
@@ -44,7 +44,7 @@ export const createIftaBulk = async (data) => {
     if (!storedAccessToken) {
       throw new Error('No access token found');
     }
-    const response = await axios.post(`${API_URL}/api/ifta/bulk_create/`, data, {
+    const response = await axios.post(`${API_URL}/ifta/bulk_create/`, data, {
       headers: {
         Authorization: `Bearer ${storedAccessToken}`,
         'Content-Type': 'application/json',
@@ -64,7 +64,7 @@ export const getFuelTaxRates = async () => {
     if (!storedAccessToken) {
       throw new Error('No access token found');
     }
-    const response = await axios.get(`${API_URL}/api/fuel-tax-rates/`, {
+    const response = await axios.get(`${API_URL}/fuel-tax-rates/`, {
       headers: {
         Authorization: `Bearer ${storedAccessToken}`,
       },
@@ -82,7 +82,7 @@ export const createFuelTaxRatesBulk = async (data) => {
     if (!storedAccessToken) {
       throw new Error('No access token found');
     }
-    const response = await axios.post(`${API_URL}/api/fuel-tax-rates/bulk_create/`, data, {
+    const response = await axios.post(`${API_URL}/fuel-tax-rates/bulk_create/`, data, {
       headers: {
         Authorization: `Bearer ${storedAccessToken}`,
         'Content-Type': 'application/json',
@@ -101,7 +101,7 @@ export const updateIftaRecord = async (id, data) => {
     if (!storedAccessToken) {
       throw new Error('No access token found');
     }
-    const response = await axios.put(`${API_URL}/api/ifta/${id}/`, data, {
+    const response = await axios.put(`${API_URL}/ifta/${id}/`, data, {
       headers: {
         Authorization: `Bearer ${storedAccessToken}`,
         'Content-Type': 'application/json',
@@ -120,7 +120,7 @@ export const deleteIftaRecord = async (id) => {
     if (!storedAccessToken) {
       throw new Error('No access token found');
     }
-    const response = await axios.delete(`${API_URL}/api/ifta/${id}/`, {
+    const response = await axios.delete(`${API_URL}/ifta/${id}/`, {
       headers: {
         Authorization: `Bearer ${storedAccessToken}`,
       },
