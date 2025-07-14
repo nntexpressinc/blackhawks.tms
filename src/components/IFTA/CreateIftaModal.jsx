@@ -91,10 +91,6 @@ const CreateIftaModal = ({ drivers, quarters, states, onClose, onSuccess, preSel
         setError(`Please select state for record ${i + 1}`);
         return false;
       }
-      if (!record.total_miles) {
-        setError(`Please enter total miles for record ${i + 1}`);
-        return false;
-      }
 
     }
     
@@ -229,13 +225,12 @@ const CreateIftaModal = ({ drivers, quarters, states, onClose, onSuccess, preSel
                 </div>
 
                 <div className="form-group">
-                  <label>Total Miles *</label>
+                  <label>Total Miles</label>
                   <input
                     type="number"
                     step="0.01"
                     value={record.total_miles}
                     onChange={(e) => handleStateRecordChange(index, 'total_miles', e.target.value)}
-                    required
                     min="0"
                   />
                 </div>
