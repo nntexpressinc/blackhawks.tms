@@ -6,6 +6,7 @@ import CreateIftaModal from './CreateIftaModal';
 import EditIftaModal from './EditIftaModal';
 import CreateFuelTaxRatesModal from './CreateFuelTaxRatesModal';
 import './IftaPage.css';
+import { useLocation } from 'react-router-dom';
 
 const IftaPage = () => {
   // const { t } = useTranslation(); // Translation not used yet
@@ -21,6 +22,10 @@ const IftaPage = () => {
   const [showFuelTaxRatesModal, setShowFuelTaxRatesModal] = useState(false);
   const [selectedRecord, setSelectedRecord] = useState(null);
   const [activeTab, setActiveTab] = useState('ifta');
+
+  const location = useLocation();
+  const queryParams = new URLSearchParams(location.search);
+  const driverId = queryParams.get('driverId');
 
   const US_STATES = [
     { code: 'AL', name: 'Alabama' },
@@ -40,6 +45,7 @@ const IftaPage = () => {
     { code: 'IA', name: 'Iowa' },
     { code: 'KS', name: 'Kansas' },
     { code: 'KY', name: 'Kentucky' },
+    { code: 'KY Surcharge', name: 'Kentucky Surcharge' },
     { code: 'LA', name: 'Louisiana' },
     { code: 'ME', name: 'Maine' },
     { code: 'MD', name: 'Maryland' },
@@ -195,6 +201,10 @@ const IftaPage = () => {
   //   return `$${parseFloat(amount).toFixed(2)}`;
   // };
 
+  const filteredIftaRecords = driverId
+    ? iftaRecords.filter(record => String(record.driver) === String(driverId))
+    : iftaRecords;
+
   if (loading) {
     return <div className="loading">Loading IFTA records...</div>;
   }
@@ -203,7 +213,9 @@ const IftaPage = () => {
     <div className="ifta-page">
       <div className="ifta-container">
         <div className="ifta-header">
-          <h1 className="ifta-title">IFTA Management</h1>
+          <h1 className="ifta-title">
+            {driverId ? "Driver IFTA Records" : "IFTA Management"}
+          </h1>
           <div style={{ display: 'flex', gap: '10px' }}>
             {activeTab === 'ifta' && (
               <button 
@@ -255,26 +267,28 @@ const IftaPage = () => {
                 <th>State</th>
                 <th>Total Miles</th>
                 <th>Tax Paid Gallon</th>
+                <th>Tax</th>
                 <th>Invoice Number</th>
                 <th>Weekly Number</th>
                 <th>Actions</th>
               </tr>
             </thead>
             <tbody>
-              {iftaRecords.length === 0 ? (
+              {filteredIftaRecords.length === 0 ? (
                 <tr>
-                  <td colSpan="8" style={{ textAlign: 'center', padding: '20px' }}>
-                    No IFTA records found
+                  <td colSpan="9" style={{ textAlign: 'center', padding: '20px' }}>
+                    {driverId ? 'No IFTA records found for this driver.' : 'No IFTA records found.'}
                   </td>
                 </tr>
               ) : (
-                iftaRecords.map((record) => (
+                filteredIftaRecords.map((record) => (
                   <tr key={record.id}>
                     <td>{record.quarter}</td>
                     <td>{getDriverName(record.driver)}</td>
                     <td>{record.state} - {getStateName(record.state)}</td>
                     <td>{record.total_miles}</td>
                     <td>{record.tax_paid_gallon || '-'}</td>
+                    <td>{record.tax || '-'}</td>
                     <td>{record.invoice_number}</td>
                     <td>{record.weekly_number}</td>
                     <td>

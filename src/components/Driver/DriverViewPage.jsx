@@ -440,6 +440,19 @@ const DriverViewPage = () => {
   const filteredPayData = payData.filter(pay => pay.driver === driverId);
   const filteredExpenseData = expenseData.filter(expense => expense.driver === driverId);
 
+  const thStyle = {
+    border: '1px solid #e0e0e0',
+    padding: '8px',
+    fontWeight: 600,
+    textAlign: 'center',
+    background: '#f9fafb'
+  };
+  const tdStyle = {
+    border: '1px solid #e0e0e0',
+    padding: '8px',
+    textAlign: 'center'
+  };
+
   return (
     <Box sx={{ p: 3 }}>
       <ToastContainer />
@@ -647,135 +660,109 @@ const DriverViewPage = () => {
               </Button>
             </Box>
             <DataGrid
-              rows={iftaRecords}
+              rows={iftaRecords.filter(r => r && r.id != null)}
               columns={[
-                {
-                  field: 'quarter',
-                  headerName: 'Quarter',
-                  width: 150
-                },
-                {
-                  field: 'weekly_number',
-                  headerName: 'Week Number',
-                  width: 150
-                },
-                {
-                  field: 'created_at',
-                  headerName: 'Created At',
-                  width: 200,
-                  valueGetter: (params) => {
-                    return new Date(params.row.created_at).toLocaleDateString();
-                  }
-                },
-                {
-                  field: 'records',
-                  headerName: 'States',
-                  width: 200,
-                  valueGetter: (params) => {
-                    return params.row.ifta_records
-                      ? params.row.ifta_records.map(r => r.state).join(', ')
-                      : '-';
-                  }
-                },
-                {
-                  field: 'total_miles',
-                  headerName: 'Total Miles',
-                  width: 150,
-                  valueGetter: (params) => {
-                    return params.row.ifta_records
-                      ? params.row.ifta_records.reduce((sum, r) => sum + parseFloat(r.total_miles || 0), 0)
-                      : 0;
-                  }
-                },
-                {
-                  field: 'tax_paid_gallon',
-                  headerName: 'Tax Paid Gallons',
-                  width: 150,
-                  valueGetter: (params) => {
-                    return params.row.ifta_records
-                      ? params.row.ifta_records.reduce((sum, r) => sum + parseFloat(r.tax_paid_gallon || 0), 0)
-                      : 0;
-                  }
-                },
+                { field: 'quarter', headerName: 'Quarter', width: 120 },
+                { field: 'state', headerName: 'State', width: 140 },
+                { field: 'total_miles', headerName: 'Total Miles', width: 120 },
+                { field: 'tax_paid_gallon', headerName: 'Tax Paid Gallon', width: 140, valueGetter: (params) => params.row.tax_paid_gallon || '-' },
+                { field: 'tax', headerName: 'Tax', width: 100, valueGetter: (params) => params.row.tax || '-' },
+                { field: 'invoice_number', headerName: 'Invoice Number', width: 140 },
+                { field: 'weekly_number', headerName: 'Weekly Number', width: 140 },
                 {
                   field: 'actions',
                   headerName: 'Actions',
                   width: 120,
+                  sortable: false,
                   renderCell: (params) => (
                     <Box>
-                      <IconButton
-                        size="small"
-                        onClick={() => handleEditIftaRecord(params.row)}
-                      >
-                        <EditIcon fontSize="small" />
-                      </IconButton>
-                      <IconButton
-                        size="small"
-                        onClick={() => handleDeleteIftaRecord(params.row)}
-                      >
-                        <DeleteIcon fontSize="small" color="error" />
-                      </IconButton>
+                      <IconButton onClick={() => handleEditIftaRecord(params.row)} size="small"><EditIcon /></IconButton>
+                      <IconButton onClick={() => handleDeleteIftaRecord(params.row)} size="small" color="error"><DeleteIcon /></IconButton>
                     </Box>
-                  )
-                }
+                  ),
+                },
               ]}
+              pageSize={5}
+              rowsPerPageOptions={[5, 10, 20]}
               autoHeight
-              getRowId={(row) => row.id}
-              pageSize={10}
               sx={{
                 borderRadius: 2,
                 boxShadow: 2,
                 border: '1px solid #e0e0e0',
                 background: '#fafbfc',
               }}
+              getRowId={row => row.id}
             />
+
+            {/* Create Modal */}
+            {showIftaModal && (
+              <Dialog
+                open={showIftaModal}
+                onClose={() => setShowIftaModal(false)}
+                maxWidth="sm"
+                fullWidth
+                BackdropProps={{ style: { backdropFilter: 'blur(4px)' } }}
+                PaperProps={{ sx: { borderRadius: 3, p: 3, boxShadow: 6 } }}
+              >
+                <CreateIftaModal
+                  preSelectedDriver={parseInt(id, 10)}
+                  drivers={[driverData]}
+                  quarters={[
+                    { value: 'Quarter 1', label: 'Quarter 1' },
+                    { value: 'Quarter 2', label: 'Quarter 2' },
+                    { value: 'Quarter 3', label: 'Quarter 3' },
+                    { value: 'Quarter 4', label: 'Quarter 4' }
+                  ]}
+                  states={US_STATES}
+                  onClose={() => setShowIftaModal(false)}
+                  onSuccess={(newRecord) => {
+                    setIftaRecords([...iftaRecords, newRecord]);
+                    setShowIftaModal(false);
+                    toast.success('IFTA record created successfully');
+                  }}
+                />
+              </Dialog>
+            )}
+
+            {/* Edit Modal */}
+            {showEditIftaModal && selectedIftaRecord && (
+              <Dialog
+                open={showEditIftaModal}
+                onClose={() => setShowEditIftaModal(false)}
+                maxWidth="sm"
+                fullWidth
+                BackdropProps={{ style: { backdropFilter: 'blur(4px)' } }}
+                PaperProps={{ sx: { borderRadius: 3, p: 3, boxShadow: 6 } }}
+              >
+                <EditIftaModal
+                  record={selectedIftaRecord}
+                  drivers={[driverData]}
+                  quarters={[
+                    { value: 'Quarter 1', label: 'Quarter 1' },
+                    { value: 'Quarter 2', label: 'Quarter 2' },
+                    { value: 'Quarter 3', label: 'Quarter 3' },
+                    { value: 'Quarter 4', label: 'Quarter 4' }
+                  ]}
+                  states={US_STATES}
+                  onClose={() => setShowEditIftaModal(false)}
+                  onSuccess={(updatedRecord) => {
+                    if (!iftaRecords.some(r => r.id === updatedRecord.id)) {
+                      setShowEditIftaModal(false);
+                      toast.success('IFTA record updated successfully');
+                    } else {
+                      setIftaRecords(iftaRecords.map(record =>
+                        record.id === updatedRecord.id ? updatedRecord : record
+                      ));
+                      setShowEditIftaModal(false);
+                      toast.success('IFTA record updated successfully');
+                    }
+                  }}
+                />
+              </Dialog>
+            )}
           </Box>
         )}
       </Paper>
-
-      {/* IFTA Edit Modal */}
-      {showEditIftaModal && (
-        <EditIftaModal
-          record={selectedIftaRecord}
-          drivers={[driverData]}
-          quarters={[
-            { value: 'Quorter 1', label: 'Q1 (Jan-Mar)' },
-            { value: 'Quorter 2', label: 'Q2 (Apr-Jun)' },
-            { value: 'Quorter 3', label: 'Q3 (Jul-Sep)' },
-            { value: 'Quorter 4', label: 'Q4 (Oct-Dec)' }
-          ]}
-          states={US_STATES}
-          onClose={() => setShowEditIftaModal(false)}
-          onSuccess={(updatedRecord) => {
-            setIftaRecords(iftaRecords.map(record => 
-              record.id === updatedRecord.id ? updatedRecord : record
-            ));
-            setShowEditIftaModal(false);
-            toast.success('IFTA record updated successfully');
-          }}
-        />
-      )}
-
-      {/* IFTA Create Modal */}
-      {showIftaModal && (
-        <CreateIftaModal
-          preSelectedDriver={parseInt(id, 10)}
-          drivers={[driverData]}
-          quarters={[
-            { value: 'Quorter 1', label: 'Q1 (Jan-Mar)' },
-            { value: 'Quorter 2', label: 'Q2 (Apr-Jun)' },
-            { value: 'Quorter 3', label: 'Q3 (Jul-Sep)' },
-            { value: 'Quorter 4', label: 'Q4 (Oct-Dec)' }
-          ]}
-          states={US_STATES}
-          onClose={() => setShowIftaModal(false)}
-          onSuccess={(newRecord) => {
-            setIftaRecords([...iftaRecords, newRecord]);
-            setShowIftaModal(false);
-            toast.success('IFTA record created successfully');
-          }}
-        />
-      )}
 
       <Dialog
         open={deleteDialogOpen}
