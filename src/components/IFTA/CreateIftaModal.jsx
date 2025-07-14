@@ -250,7 +250,7 @@ const CreateIftaModal = ({ drivers, quarters, states, onClose, onSuccess }) => {
                     type="text"
                     value={record.invoice_number}
                     onChange={(e) => handleStateRecordChange(index, 'invoice_number', e.target.value)}
-                    required
+                    
                   />
                 </div>
               </div>
