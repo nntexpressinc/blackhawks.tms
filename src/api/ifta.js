@@ -131,3 +131,40 @@ export const deleteIftaRecord = async (id) => {
     throw error;
   }
 };
+
+export const updateFuelTaxRate = async (id, data) => {
+  try {
+    const storedAccessToken = localStorage.getItem('accessToken');
+    if (!storedAccessToken) {
+      throw new Error('No access token found');
+    }
+    const response = await axios.put(`${API_URL}/fuel-tax-rates/${id}/`, data, {
+      headers: {
+        Authorization: `Bearer ${storedAccessToken}`,
+        'Content-Type': 'application/json',
+      },
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error updating fuel tax rate:', error.message);
+    throw error;
+  }
+};
+
+export const deleteFuelTaxRate = async (id) => {
+  try {
+    const storedAccessToken = localStorage.getItem('accessToken');
+    if (!storedAccessToken) {
+      throw new Error('No access token found');
+    }
+    const response = await axios.delete(`${API_URL}/fuel-tax-rates/${id}/`, {
+      headers: {
+        Authorization: `Bearer ${storedAccessToken}`,
+      },
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error deleting fuel tax rate:', error.message);
+    throw error;
+  }
+};

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { getIftaRecords, deleteIftaRecord, getFuelTaxRates } from '../../api/ifta';
+import { getIftaRecords, deleteIftaRecord, getFuelTaxRates, deleteFuelTaxRate } from '../../api/ifta';
 import { getDrivers } from '../../api/accounting';
 import CreateIftaModal from './CreateIftaModal';
 import EditIftaModal from './EditIftaModal';
@@ -22,6 +22,12 @@ const IftaPage = () => {
   const [showFuelTaxRatesModal, setShowFuelTaxRatesModal] = useState(false);
   const [selectedRecord, setSelectedRecord] = useState(null);
   const [activeTab, setActiveTab] = useState('ifta');
+  
+  // Hierarchical expansion states for IFTA records
+  const [expandedYears, setExpandedYears] = useState({});
+  const [expandedQuartersInYear, setExpandedQuartersInYear] = useState({});
+  const [expandedWeeks, setExpandedWeeks] = useState({});
+  const [expandedDrivers, setExpandedDrivers] = useState({});
 
   const location = useLocation();
   const queryParams = new URLSearchParams(location.search);
@@ -124,6 +130,166 @@ const IftaPage = () => {
     return grouped;
   };
 
+  // IFTA Records hierarchical grouping
+  const getGroupedIftaRecords = () => {
+    const grouped = {};
+    
+    iftaRecords.forEach(record => {
+      const year = record.fuel_tax_rate?.year || new Date().getFullYear();
+      const quarter = record.quarter;
+      const weeklyNumber = record.weekly_number;
+      const driverId = record.driver;
+      
+      // Initialize year
+      if (!grouped[year]) {
+        grouped[year] = {
+          quarters: {},
+          totalMiles: 0,
+          totalTax: 0
+        };
+      }
+      
+      // Initialize quarter
+      if (!grouped[year].quarters[quarter]) {
+        grouped[year].quarters[quarter] = {
+          weeks: {},
+          totalMiles: 0,
+          totalTax: 0
+        };
+      }
+      
+      // Initialize week
+      if (!grouped[year].quarters[quarter].weeks[weeklyNumber]) {
+        grouped[year].quarters[quarter].weeks[weeklyNumber] = {
+          drivers: {},
+          totalMiles: 0,
+          totalTax: 0
+        };
+      }
+      
+      // Initialize driver
+      if (!grouped[year].quarters[quarter].weeks[weeklyNumber].drivers[driverId]) {
+        grouped[year].quarters[quarter].weeks[weeklyNumber].drivers[driverId] = {
+          records: [],
+          totalMiles: 0,
+          totalTax: 0
+        };
+      }
+      
+      // Add record and calculate totals
+      const miles = parseFloat(record.total_miles) || 0;
+      const tax = parseFloat(record.tax) || 0;
+      
+      grouped[year].quarters[quarter].weeks[weeklyNumber].drivers[driverId].records.push(record);
+      grouped[year].quarters[quarter].weeks[weeklyNumber].drivers[driverId].totalMiles += miles;
+      grouped[year].quarters[quarter].weeks[weeklyNumber].drivers[driverId].totalTax += tax;
+      
+      // Update week totals
+      grouped[year].quarters[quarter].weeks[weeklyNumber].totalMiles += miles;
+      grouped[year].quarters[quarter].weeks[weeklyNumber].totalTax += tax;
+      
+      // Update quarter totals
+      grouped[year].quarters[quarter].totalMiles += miles;
+      grouped[year].quarters[quarter].totalTax += tax;
+      
+      // Update year totals
+      grouped[year].totalMiles += miles;
+      grouped[year].totalTax += tax;
+    });
+    
+    return grouped;
+  };
+
+  // Toggle functions for hierarchical expansion
+  const toggleYear = (year) => {
+    setExpandedYears(prev => ({
+      ...prev,
+      [year]: !prev[year]
+    }));
+  };
+
+  const toggleQuarterInYear = (year, quarter) => {
+    const key = `${year}-${quarter}`;
+    setExpandedQuartersInYear(prev => ({
+      ...prev,
+      [key]: !prev[key]
+    }));
+  };
+
+  const toggleWeek = (year, quarter, weeklyNumber) => {
+    const key = `${year}-${quarter}-${weeklyNumber}`;
+    setExpandedWeeks(prev => ({
+      ...prev,
+      [key]: !prev[key]
+    }));
+  };
+
+  const toggleDriver = (year, quarter, weeklyNumber, driverId) => {
+    const key = `${year}-${quarter}-${weeklyNumber}-${driverId}`;
+    setExpandedDrivers(prev => ({
+      ...prev,
+      [key]: !prev[key]
+    }));
+  };
+
+  // Calculate driver totals organized by year, quarter, and week
+  const calculateDriverTotals = (targetDriverId) => {
+    const driverData = {
+      years: {},
+      totalMiles: 0,
+      totalTax: 0
+    };
+
+    iftaRecords.forEach(record => {
+      const recordDriverId = record.driver;
+      if (recordDriverId === parseInt(targetDriverId)) {
+        const year = record.fuel_tax_rate?.year || new Date().getFullYear();
+        const quarter = record.quarter;
+        const weeklyNumber = record.weekly_number;
+        const miles = parseFloat(record.total_miles) || 0;
+        const tax = parseFloat(record.tax) || 0;
+
+        // Initialize year if not exists
+        if (!driverData.years[year]) {
+          driverData.years[year] = {
+            quarters: {},
+            totalMiles: 0,
+            totalTax: 0
+          };
+        }
+
+        // Initialize quarter if not exists
+        if (!driverData.years[year].quarters[quarter]) {
+          driverData.years[year].quarters[quarter] = {
+            weeks: {},
+            totalMiles: 0,
+            totalTax: 0
+          };
+        }
+
+        // Initialize week if not exists
+        if (!driverData.years[year].quarters[quarter].weeks[weeklyNumber]) {
+          driverData.years[year].quarters[quarter].weeks[weeklyNumber] = {
+            totalMiles: 0,
+            totalTax: 0
+          };
+        }
+
+        // Add to totals
+        driverData.years[year].quarters[quarter].weeks[weeklyNumber].totalMiles += miles;
+        driverData.years[year].quarters[quarter].weeks[weeklyNumber].totalTax += tax;
+        driverData.years[year].quarters[quarter].totalMiles += miles;
+        driverData.years[year].quarters[quarter].totalTax += tax;
+        driverData.years[year].totalMiles += miles;
+        driverData.years[year].totalTax += tax;
+        driverData.totalMiles += miles;
+        driverData.totalTax += tax;
+      }
+    });
+
+    return driverData;
+  };
+
   const toggleQuarter = (quarter) => {
     setExpandedQuarters(prev => ({
       ...prev,
@@ -131,13 +297,13 @@ const IftaPage = () => {
     }));
   };
 
-  const deleteFuelTaxRate = async (id) => {
+  const handleDeleteFuelTaxRate = async (id) => {
     if (window.confirm('Are you sure you want to delete this fuel tax rate?')) {
       try {
-        // API call to delete will go here
-        console.log('Delete fuel tax rate:', id);
-        // After successful delete, refresh data
+        await deleteFuelTaxRate(id);
+        setSuccessMessage('Fuel tax rate deleted successfully!');
         fetchData();
+        setTimeout(() => setSuccessMessage(''), 3000);
       } catch (err) {
         setError('Failed to delete fuel tax rate');
         console.error('Error deleting fuel tax rate:', err);
@@ -196,10 +362,10 @@ const IftaPage = () => {
     return driver ? `${driver.user.first_name} ${driver.user.last_name}` : 'Unknown';
   };
 
-  // const formatAmount = (amount) => {
-  //   if (!amount) return '$0.00';
-  //   return `$${parseFloat(amount).toFixed(2)}`;
-  // };
+  const formatAmount = (amount) => {
+    if (!amount) return '$0.00';
+    return `$${parseFloat(amount).toFixed(2)}`;
+  };
 
   const filteredIftaRecords = driverId
     ? iftaRecords.filter(record => String(record.driver) === String(driverId))
@@ -258,60 +424,278 @@ const IftaPage = () => {
         {successMessage && <div className="success-message">{successMessage}</div>}
 
         {activeTab === 'ifta' ? (
-          // IFTA Records Table
-          <table className="ifta-table">
-            <thead>
-              <tr>
-                <th>Quarter</th>
-                <th>Driver</th>
-                <th>State</th>
-                <th>Total Miles</th>
-                <th>Tax Paid Gallon</th>
-                <th>Tax</th>
-                <th>Invoice Number</th>
-                <th>Weekly Number</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredIftaRecords.length === 0 ? (
-                <tr>
-                  <td colSpan="9" style={{ textAlign: 'center', padding: '20px' }}>
-                    {driverId ? 'No IFTA records found for this driver.' : 'No IFTA records found.'}
-                  </td>
-                </tr>
-              ) : (
-                filteredIftaRecords.map((record) => (
-                  <tr key={record.id}>
-                    <td>{record.quarter}</td>
-                    <td>{getDriverName(record.driver)}</td>
-                    <td>{record.state} - {getStateName(record.state)}</td>
-                    <td>{record.total_miles}</td>
-                    <td>{record.tax_paid_gallon || '-'}</td>
-                    <td>{record.tax || '-'}</td>
-                    <td>{record.invoice_number}</td>
-                    <td>{record.weekly_number}</td>
-                    <td>
-                      <div className="ifta-actions">
-                        <button 
-                          className="btn-secondary"
-                          onClick={() => handleEdit(record)}
-                        >
-                          Edit
-                        </button>
-                        <button 
-                          className="btn-danger"
-                          onClick={() => handleDelete(record.id)}
-                        >
-                          Delete
-                        </button>
+          // IFTA Records Hierarchical View
+          <div className="ifta-records-hierarchical">
+            {Object.keys(getGroupedIftaRecords()).length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '20px' }}>
+                {driverId ? 'No IFTA records found for this driver.' : 'No IFTA records found.'}
+              </div>
+            ) : (
+              Object.keys(getGroupedIftaRecords())
+                .sort((a, b) => b - a) // Sort years descending
+                .map((year) => {
+                  const yearData = getGroupedIftaRecords()[year];
+                  return (
+                    <div key={year} className="year-group">
+                      <div 
+                        className="year-header"
+                        onClick={() => toggleYear(year)}
+                        style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          padding: '15px',
+                          backgroundColor: 'white',
+                          color: 'black',
+                          border: '2px solid #007bff',
+                          borderRadius: '8px',
+                          cursor: 'pointer',
+                          marginBottom: '10px',
+                          transition: 'background-color 0.3s',
+                          fontWeight: 'bold'
+                        }}
+                      >
+                        <div>
+                          <span style={{ fontSize: '18px', marginRight: '20px' }}>Year {year}</span>
+                          <span style={{ fontSize: '14px' }}>
+                            Total Miles: {yearData.totalMiles.toFixed(2)} | 
+                            Total Tax: {formatAmount(yearData.totalTax)}
+                          </span>
+                        </div>
+                        <span style={{ fontSize: '18px', fontWeight: 'bold' }}>
+                          {expandedYears[year] ? '▼' : '▶'}
+                        </span>
                       </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+
+                      {expandedYears[year] && (
+                        <div style={{ marginLeft: '20px', marginBottom: '20px' }}>
+                          {Object.keys(yearData.quarters)
+                            .sort((a, b) => {
+                              const order = { 'Quarter 1': 1, 'Quarter 2': 2, 'Quarter 3': 3, 'Quarter 4': 4 };
+                              return order[a] - order[b];
+                            })
+                            .map((quarter) => {
+                              const quarterData = yearData.quarters[quarter];
+                              const quarterKey = `${year}-${quarter}`;
+                              return (
+                                <div key={quarter} className="quarter-group">
+                                  <div 
+                                    className="quarter-header"
+                                    onClick={() => toggleQuarterInYear(year, quarter)}
+                                    style={{
+                                      display: 'flex',
+                                      justifyContent: 'space-between',
+                                      alignItems: 'center',
+                                      padding: '12px',
+                                      backgroundColor: 'white',
+                                      color: 'black',
+                                      border: '2px solid #28a745',
+                                      borderRadius: '6px',
+                                      cursor: 'pointer',
+                                      marginBottom: '8px',
+                                      transition: 'background-color 0.3s'
+                                    }}
+                                  >
+                                    <div>
+                                      <span style={{ fontSize: '16px', marginRight: '15px' }}>{quarter}</span>
+                                      <span style={{ fontSize: '13px' }}>
+                                        Total Miles: {quarterData.totalMiles.toFixed(2)} | 
+                                        Total Tax: {formatAmount(quarterData.totalTax)}
+                                      </span>
+                                    </div>
+                                    <span style={{ fontSize: '16px' }}>
+                                      {expandedQuartersInYear[quarterKey] ? '▼' : '▶'}
+                                    </span>
+                                  </div>
+
+                                  {expandedQuartersInYear[quarterKey] && (
+                                    <div style={{ marginLeft: '20px', marginBottom: '15px' }}>
+                                      {Object.keys(quarterData.weeks)
+                                        .sort((a, b) => parseInt(a) - parseInt(b))
+                                        .map((weeklyNumber) => {
+                                          const weekData = quarterData.weeks[weeklyNumber];
+                                          const weekKey = `${year}-${quarter}-${weeklyNumber}`;
+                                          return (
+                                            <div key={weeklyNumber} className="week-group">
+                                              <div 
+                                                className="week-header"
+                                                onClick={() => toggleWeek(year, quarter, weeklyNumber)}
+                                                style={{
+                                                  display: 'flex',
+                                                  justifyContent: 'space-between',
+                                                  alignItems: 'center',
+                                                  padding: '10px',
+                                                  backgroundColor: 'white',
+                                                  color: 'black',
+                                                  border: '2px solid #ffc107',
+                                                  borderRadius: '4px',
+                                                  cursor: 'pointer',
+                                                  marginBottom: '6px',
+                                                  transition: 'background-color 0.3s'
+                                                }}
+                                              >
+                                                <div>
+                                                  <span style={{ fontSize: '14px', marginRight: '15px', fontWeight: 'bold' }}>
+                                                    Week {weeklyNumber}
+                                                  </span>
+                                                  <span style={{ fontSize: '12px' }}>
+                                                    Total Miles: {weekData.totalMiles.toFixed(2)} | 
+                                                    Total Tax: {formatAmount(weekData.totalTax)}
+                                                  </span>
+                                                </div>
+                                                <span style={{ fontSize: '14px' }}>
+                                                  {expandedWeeks[weekKey] ? '▼' : '▶'}
+                                                </span>
+                                              </div>
+
+                                              {expandedWeeks[weekKey] && (
+                                                <div style={{ marginLeft: '20px', marginBottom: '10px' }}>
+                                                  {Object.keys(weekData.drivers).map((driverId) => {
+                                                    const driverData = weekData.drivers[driverId];
+                                                    const driverKey = `${year}-${quarter}-${weeklyNumber}-${driverId}`;
+                                                    const driverTotals = calculateDriverTotals(driverId);
+                                                    return (
+                                                      <div key={driverId} className="driver-group">
+                                                        <div 
+                                                          className="driver-header"
+                                                          onClick={() => toggleDriver(year, quarter, weeklyNumber, driverId)}
+                                                          style={{
+                                                            display: 'flex',
+                                                            justifyContent: 'space-between',
+                                                            alignItems: 'center',
+                                                            padding: '8px',
+                                                            backgroundColor: 'white',
+                                                            color: 'black',
+                                                            border: '2px solid #6f42c1',
+                                                            borderRadius: '4px',
+                                                            cursor: 'pointer',
+                                                            marginBottom: '4px',
+                                                            transition: 'background-color 0.3s'
+                                                          }}
+                                                        >
+                                                          <div>
+                                                            <span style={{ fontSize: '13px', marginRight: '10px', fontWeight: 'bold' }}>
+                                                              {getDriverName(parseInt(driverId))}
+                                                            </span>
+                                                            <div style={{ fontSize: '10px', marginTop: '4px' }}>
+                                                              {(() => {
+                                                                const driverTotals = calculateDriverTotals(driverId);
+                                                                return (
+                                                                  <div>
+                                                                    <div style={{ fontWeight: 'bold', marginBottom: '2px' }}>
+                                                                      Driver Total: Miles {driverTotals.totalMiles.toFixed(2)} | Tax {formatAmount(driverTotals.totalTax)}
+                                                                    </div>
+                                                                    <div style={{ fontSize: '9px' }}>
+                                                                      <strong>Years:</strong> {Object.keys(driverTotals.years).map(y => 
+                                                                        `${y} (${driverTotals.years[y].totalMiles.toFixed(0)}mi, ${formatAmount(driverTotals.years[y].totalTax)})`
+                                                                      ).join(', ')}
+                                                                    </div>
+                                                                    <div style={{ fontSize: '9px' }}>
+                                                                      <strong>Quarters:</strong> {Object.keys(driverTotals.years).map(y => 
+                                                                        Object.keys(driverTotals.years[y].quarters).map(q => 
+                                                                          `${q}-${y} (${driverTotals.years[y].quarters[q].totalMiles.toFixed(0)}mi, ${formatAmount(driverTotals.years[y].quarters[q].totalTax)})`
+                                                                        )
+                                                                      ).flat().join(', ')}
+                                                                    </div>
+                                                                    <div style={{ fontSize: '9px' }}>
+                                                                      <strong>Weeks:</strong> {Object.keys(driverTotals.years).map(y => 
+                                                                        Object.keys(driverTotals.years[y].quarters).map(q => 
+                                                                          Object.keys(driverTotals.years[y].quarters[q].weeks).map(w => 
+                                                                            `W${w}-${q}-${y} (${driverTotals.years[y].quarters[q].weeks[w].totalMiles.toFixed(0)}mi, ${formatAmount(driverTotals.years[y].quarters[q].weeks[w].totalTax)})`
+                                                                          )
+                                                                        )
+                                                                      ).flat().flat().join(', ')}
+                                                                    </div>
+                                                                  </div>
+                                                                );
+                                                              })()}
+                                                            </div>
+                                                          </div>
+                                                          <span style={{ fontSize: '12px' }}>
+                                                            {expandedDrivers[driverKey] ? '▼' : '▶'}
+                                                          </span>
+                                                        </div>
+
+                                                        {expandedDrivers[driverKey] && (
+                                                          <div style={{ marginLeft: '15px' }}>
+                                                            <table className="ifta-records-detail-table" style={{
+                                                              width: '100%',
+                                                              borderCollapse: 'collapse',
+                                                              fontSize: '12px',
+                                                              marginBottom: '10px'
+                                                            }}>
+                                                              <thead>
+                                                                <tr style={{ backgroundColor: '#f8f9fa' }}>
+                                                                  <th style={{ padding: '6px', border: '1px solid #ddd' }}>State</th>
+                                                                  <th style={{ padding: '6px', border: '1px solid #ddd' }}>Miles</th>
+                                                                  <th style={{ padding: '6px', border: '1px solid #ddd' }}>Tax Paid Gallon</th>
+                                                                  <th style={{ padding: '6px', border: '1px solid #ddd' }}>Tax</th>
+                                                                  <th style={{ padding: '6px', border: '1px solid #ddd' }}>Invoice</th>
+                                                                  <th style={{ padding: '6px', border: '1px solid #ddd' }}>Actions</th>
+                                                                </tr>
+                                                              </thead>
+                                                              <tbody>
+                                                                {driverData.records.map((record) => (
+                                                                  <tr key={record.id}>
+                                                                    <td style={{ padding: '6px', border: '1px solid #ddd' }}>
+                                                                      {record.state} - {getStateName(record.state)}
+                                                                    </td>
+                                                                    <td style={{ padding: '6px', border: '1px solid #ddd' }}>
+                                                                      {record.total_miles}
+                                                                    </td>
+                                                                    <td style={{ padding: '6px', border: '1px solid #ddd' }}>
+                                                                      {record.tax_paid_gallon || '-'}
+                                                                    </td>
+                                                                    <td style={{ padding: '6px', border: '1px solid #ddd' }}>
+                                                                      {formatAmount(record.tax)}
+                                                                    </td>
+                                                                    <td style={{ padding: '6px', border: '1px solid #ddd' }}>
+                                                                      {record.invoice_number}
+                                                                    </td>
+                                                                    <td style={{ padding: '6px', border: '1px solid #ddd' }}>
+                                                                      <div style={{ display: 'flex', gap: '4px' }}>
+                                                                        <button 
+                                                                          className="btn-secondary"
+                                                                          style={{ fontSize: '10px', padding: '2px 6px' }}
+                                                                          onClick={() => handleEdit(record)}
+                                                                        >
+                                                                          Edit
+                                                                        </button>
+                                                                        <button 
+                                                                          className="btn-danger"
+                                                                          style={{ fontSize: '10px', padding: '2px 6px' }}
+                                                                          onClick={() => handleDelete(record.id)}
+                                                                        >
+                                                                          Delete
+                                                                        </button>
+                                                                      </div>
+                                                                    </td>
+                                                                  </tr>
+                                                                ))}
+                                                              </tbody>
+                                                            </table>
+                                                          </div>
+                                                        )}
+                                                      </div>
+                                                    );
+                                                  })}
+                                                </div>
+                                              )}
+                                            </div>
+                                          );
+                                        })}
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })
+            )}
+          </div>
         ) : (
           // Fuel Tax Rates Table - Quarter-wise grouped
           <div className="fuel-tax-rates">
@@ -372,7 +756,7 @@ const IftaPage = () => {
                                 </button>
                                 <button 
                                   className="btn-danger"
-                                  onClick={() => deleteFuelTaxRate(rate.id)}
+                                  onClick={() => handleDeleteFuelTaxRate(rate.id)}
                                 >
                                   Delete
                                 </button>

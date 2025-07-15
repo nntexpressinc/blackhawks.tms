@@ -1,19 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { updateIftaRecord } from '../../api/ifta';
+import { updateFuelTaxRate } from '../../api/ifta';
 
-const EditIftaModal = ({ record, drivers, quarters, states, onClose, onSuccess }) => {
+const EditFuelTaxRateModal = ({ record, quarters, states, onClose, onSuccess }) => {
   const { t } = useTranslation();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [formData, setFormData] = useState({
     quarter: '',
     state: '',
-    total_miles: '',
-    tax_paid_gallon: '',
-    invoice_number: '',
-    weekly_number: '',
-    driver: ''
+    rate: '',
+    mpg: ''
   });
 
   useEffect(() => {
@@ -21,11 +18,8 @@ const EditIftaModal = ({ record, drivers, quarters, states, onClose, onSuccess }
       setFormData({
         quarter: record.quarter || '',
         state: record.state || '',
-        total_miles: record.total_miles || '',
-        tax_paid_gallon: record.tax_paid_gallon || '',
-        invoice_number: record.invoice_number || '',
-        weekly_number: record.weekly_number || '',
-        driver: record.driver || ''
+        rate: record.rate || '',
+        mpg: record.mpg || ''
       });
     }
   }, [record]);
@@ -47,12 +41,12 @@ const EditIftaModal = ({ record, drivers, quarters, states, onClose, onSuccess }
       setError('Please select a state');
       return false;
     }
-    if (!formData.weekly_number) {
-      setError('Please enter weekly number');
+    if (!formData.rate) {
+      setError('Please enter rate');
       return false;
     }
-    if (!formData.driver) {
-      setError('Please select a driver');
+    if (!formData.mpg) {
+      setError('Please enter MPG');
       return false;
     }
     
@@ -72,17 +66,15 @@ const EditIftaModal = ({ record, drivers, quarters, states, onClose, onSuccess }
       // Convert numeric fields
       const submitData = {
         ...formData,
-        total_miles: parseFloat(formData.total_miles),
-        tax_paid_gallon: formData.tax_paid_gallon ? parseFloat(formData.tax_paid_gallon) : null,
-        weekly_number: parseInt(formData.weekly_number),
-        driver: parseInt(formData.driver)
+        rate: parseFloat(formData.rate),
+        mpg: parseFloat(formData.mpg)
       };
 
-      await updateIftaRecord(record.id, submitData);
+      const response = await updateFuelTaxRate(record.id, submitData);
       onSuccess();
     } catch (err) {
-      setError('Failed to update IFTA record');
-      console.error('Error updating IFTA record:', err);
+      setError('Failed to update fuel tax rate');
+      console.error('Error updating fuel tax rate:', err);
     } finally {
       setLoading(false);
     }
@@ -92,7 +84,7 @@ const EditIftaModal = ({ record, drivers, quarters, states, onClose, onSuccess }
     <div className="modal-overlay">
       <div className="modal-content">
         <div className="modal-header">
-          <h2 className="modal-title">Edit IFTA Record</h2>
+          <h2 className="modal-title">Edit Fuel Tax Rate</h2>
           <button className="close-btn" onClick={onClose}>×</button>
         </div>
 
@@ -137,69 +129,32 @@ const EditIftaModal = ({ record, drivers, quarters, states, onClose, onSuccess }
 
           <div className="form-row">
             <div className="form-group">
-              <label>Driver *</label>
-              <select
-                name="driver"
-                value={formData.driver}
-                onChange={handleInputChange}
-                required
-              >
-                <option value="">Select Driver</option>
-                {drivers.map(driver => (
-                  <option key={driver.id} value={driver.id}>
-                    {driver.first_name} {driver.last_name}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="form-group">
-              <label>Weekly Number *</label>
-              <input
-                type="number"
-                name="weekly_number"
-                value={formData.weekly_number}
-                onChange={handleInputChange}
-                required
-                min="1"
-              />
-            </div>
-          </div>
-
-          <div className="form-row">
-            <div className="form-group">
-              <label>Total Miles</label>
-              <input
-                type="number"
-                step="0.01"
-                name="total_miles"
-                value={formData.total_miles}
-                onChange={handleInputChange}
-                min="0"
-              />
-            </div>
-
-            <div className="form-group">
-              <label>Tax Paid Gallon</label>
+              <label>Rate (per gallon) *</label>
               <input
                 type="number"
                 step="0.001"
-                name="tax_paid_gallon"
-                value={formData.tax_paid_gallon}
+                name="rate"
+                value={formData.rate}
                 onChange={handleInputChange}
+                required
                 min="0"
+                placeholder="0.000"
               />
             </div>
-          </div>
 
-          <div className="form-group">
-            <label>Invoice Number</label>
-            <input
-              type="text"
-              name="invoice_number"
-              value={formData.invoice_number}
-              onChange={handleInputChange}
-            />
+            <div className="form-group">
+              <label>MPG (Miles per Gallon) *</label>
+              <input
+                type="number"
+                step="0.1"
+                name="mpg"
+                value={formData.mpg}
+                onChange={handleInputChange}
+                required
+                min="0"
+                placeholder="0.0"
+              />
+            </div>
           </div>
 
           <div className="modal-actions">
@@ -207,7 +162,7 @@ const EditIftaModal = ({ record, drivers, quarters, states, onClose, onSuccess }
               Cancel
             </button>
             <button type="submit" className="btn-save" disabled={loading}>
-              {loading ? 'Updating...' : 'Update Record'}
+              {loading ? 'Updating...' : 'Update Rate'}
             </button>
           </div>
         </form>
@@ -216,4 +171,4 @@ const EditIftaModal = ({ record, drivers, quarters, states, onClose, onSuccess }
   );
 };
 
-export default EditIftaModal;
+export default EditFuelTaxRateModal;

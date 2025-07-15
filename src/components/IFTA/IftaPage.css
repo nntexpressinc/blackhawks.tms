@@ -418,3 +418,89 @@
 .form-row .form-group {
   flex: 1;
 }
+
+/* Hierarchical IFTA Records Styles */
+.ifta-records-hierarchical {
+  margin-top: 20px;
+}
+
+.year-group,
+.quarter-group,
+.week-group,
+.driver-group {
+  margin-bottom: 10px;
+}
+
+.year-header:hover {
+  background-color: #f8f9fa !important;
+  box-shadow: 0 2px 4px rgba(0,123,255,0.2);
+}
+
+.quarter-header:hover {
+  background-color: #f8f9fa !important;
+  box-shadow: 0 2px 4px rgba(40,167,69,0.2);
+}
+
+.week-header:hover {
+  background-color: #f8f9fa !important;
+  box-shadow: 0 2px 4px rgba(255,193,7,0.2);
+}
+
+.driver-header:hover {
+  background-color: #f8f9fa !important;
+  box-shadow: 0 2px 4px rgba(111,66,193,0.2);
+}
+
+.ifta-records-detail-table {
+  background-color: white;
+  border-radius: 4px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.ifta-records-detail-table th {
+  background-color: #f8f9fa;
+  font-weight: 600;
+  text-align: left;
+}
+
+.ifta-records-detail-table tr:nth-child(even) {
+  background-color: #f8f9fa;
+}
+
+.ifta-records-detail-table tr:hover {
+  background-color: #e9ecef;
+}
+
+/* Animation for expanding sections */
+.year-group,
+.quarter-group,
+.week-group,
+.driver-group {
+  transition: all 0.3s ease-in-out;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .ifta-records-hierarchical {
+    padding: 0 10px;
+  }
+  
+  .year-header,
+  .quarter-header,
+  .week-header,
+  .driver-header {
+    flex-direction: column;
+    align-items: flex-start !important;
+    gap: 5px;
+  }
+  
+  .ifta-records-detail-table {
+    font-size: 10px;
+  }
+  
+  .ifta-records-detail-table th,
+  .ifta-records-detail-table td {
+    padding: 4px !important;
+  }
+}
