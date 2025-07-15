@@ -578,37 +578,30 @@ const IftaPage = () => {
                                                               {getDriverName(parseInt(driverId))}
                                                             </span>
                                                             <div style={{ fontSize: '10px', marginTop: '4px' }}>
-                                                              {(() => {
-                                                                const driverTotals = calculateDriverTotals(driverId);
-                                                                return (
-                                                                  <div>
-                                                                    <div style={{ fontWeight: 'bold', marginBottom: '2px' }}>
-                                                                      Driver Total: Miles {driverTotals.totalMiles.toFixed(2)} | Tax {formatAmount(driverTotals.totalTax)}
-                                                                    </div>
-                                                                    <div style={{ fontSize: '9px' }}>
-                                                                      <strong>Years:</strong> {Object.keys(driverTotals.years).map(y => 
-                                                                        `${y} (${driverTotals.years[y].totalMiles.toFixed(0)}mi, ${formatAmount(driverTotals.years[y].totalTax)})`
-                                                                      ).join(', ')}
-                                                                    </div>
-                                                                    <div style={{ fontSize: '9px' }}>
-                                                                      <strong>Quarters:</strong> {Object.keys(driverTotals.years).map(y => 
-                                                                        Object.keys(driverTotals.years[y].quarters).map(q => 
-                                                                          `${q}-${y} (${driverTotals.years[y].quarters[q].totalMiles.toFixed(0)}mi, ${formatAmount(driverTotals.years[y].quarters[q].totalTax)})`
-                                                                        )
-                                                                      ).flat().join(', ')}
-                                                                    </div>
-                                                                    <div style={{ fontSize: '9px' }}>
-                                                                      <strong>Weeks:</strong> {Object.keys(driverTotals.years).map(y => 
-                                                                        Object.keys(driverTotals.years[y].quarters).map(q => 
-                                                                          Object.keys(driverTotals.years[y].quarters[q].weeks).map(w => 
-                                                                            `W${w}-${q}-${y} (${driverTotals.years[y].quarters[q].weeks[w].totalMiles.toFixed(0)}mi, ${formatAmount(driverTotals.years[y].quarters[q].weeks[w].totalTax)})`
-                                                                          )
-                                                                        )
-                                                                      ).flat().flat().join(', ')}
-                                                                    </div>
-                                                                  </div>
-                                                                );
-                                                              })()}
+                                                              <div style={{ fontWeight: 'bold', marginBottom: '2px' }}>
+                                                                Current Week Total: Miles {driverData.totalMiles.toFixed(2)} | Tax {formatAmount(driverData.totalTax)}
+                                                              </div>
+                                                              <div style={{ fontSize: '9px' }}>
+                                                                <strong>All Years:</strong> {Object.keys(driverTotals.years).map(y => 
+                                                                  `${y} (${driverTotals.years[y].totalMiles.toFixed(0)}mi, ${formatAmount(driverTotals.years[y].totalTax)})`
+                                                                ).join(', ')}
+                                                              </div>
+                                                              <div style={{ fontSize: '9px' }}>
+                                                                <strong>All Quarters:</strong> {Object.keys(driverTotals.years).map(y => 
+                                                                  Object.keys(driverTotals.years[y].quarters).map(q => 
+                                                                    `${q}-${y} (${driverTotals.years[y].quarters[q].totalMiles.toFixed(0)}mi, ${formatAmount(driverTotals.years[y].quarters[q].totalTax)})`
+                                                                  )
+                                                                ).flat().join(', ')}
+                                                              </div>
+                                                              <div style={{ fontSize: '9px' }}>
+                                                                <strong>All Weeks:</strong> {Object.keys(driverTotals.years).map(y => 
+                                                                  Object.keys(driverTotals.years[y].quarters).map(q => 
+                                                                    Object.keys(driverTotals.years[y].quarters[q].weeks).map(w => 
+                                                                      `W${w}-${q}-${y} (${driverTotals.years[y].quarters[q].weeks[w].totalMiles.toFixed(0)}mi, ${formatAmount(driverTotals.years[y].quarters[q].weeks[w].totalTax)})`
+                                                                    )
+                                                                  )
+                                                                ).flat().flat().join(', ')}
+                                                              </div>
                                                             </div>
                                                           </div>
                                                           <span style={{ fontSize: '12px' }}>
