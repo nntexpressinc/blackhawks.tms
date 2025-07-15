@@ -68,6 +68,7 @@ const US_STATES = [
   { code: 'IA', name: 'Iowa' },
   { code: 'KS', name: 'Kansas' },
   { code: 'KY', name: 'Kentucky' },
+  { code: 'KY Surcharge', name: 'Kentucky Surcharge' },
   { code: 'LA', name: 'Louisiana' },
   { code: 'ME', name: 'Maine' },
   { code: 'MD', name: 'Maryland' },
@@ -290,6 +291,16 @@ const DriverViewPage = () => {
     },
   ];
 
+  // Function to refetch IFTA data
+  const fetchIftaData = async () => {
+    try {
+      const iftaData = await ApiService.getData(`/ifta?driver=${id}`);
+      setIftaRecords(iftaData);
+    } catch (err) {
+      console.error('Error fetching IFTA data:', err);
+    }
+  };
+
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -372,7 +383,7 @@ const DriverViewPage = () => {
     try {
       if (itemType === 'ifta') {
         await ApiService.deleteData(`/ifta/${selectedIftaRecord.id}/`);
-        setIftaRecords(iftaRecords.filter(record => record.id !== selectedIftaRecord.id));
+        await fetchIftaData(); // Refetch IFTA data instead of manual filtering
         toast.success('IFTA record deleted successfully');
       } else if (itemType === 'pay') {
         await ApiService.deleteData(ENDPOINTS.DRIVER_PAY_DETAIL(selectedItem.id));
@@ -715,10 +726,10 @@ const DriverViewPage = () => {
                   ]}
                   states={US_STATES}
                   onClose={() => setShowIftaModal(false)}
-                  onSuccess={(newRecord) => {
-                    setIftaRecords([...iftaRecords, newRecord]);
+                  onSuccess={async () => {
+                    await fetchIftaData(); // Refetch IFTA data
                     setShowIftaModal(false);
-                    toast.success('IFTA record created successfully');
+                    toast.success('IFTA records created successfully');
                   }}
                 />
               </Dialog>
@@ -745,17 +756,10 @@ const DriverViewPage = () => {
                   ]}
                   states={US_STATES}
                   onClose={() => setShowEditIftaModal(false)}
-                  onSuccess={(updatedRecord) => {
-                    if (!iftaRecords.some(r => r.id === updatedRecord.id)) {
-                      setShowEditIftaModal(false);
-                      toast.success('IFTA record updated successfully');
-                    } else {
-                      setIftaRecords(iftaRecords.map(record =>
-                        record.id === updatedRecord.id ? updatedRecord : record
-                      ));
-                      setShowEditIftaModal(false);
-                      toast.success('IFTA record updated successfully');
-                    }
+                  onSuccess={async () => {
+                    await fetchIftaData(); // Refetch IFTA data
+                    setShowEditIftaModal(false);
+                    toast.success('IFTA record updated successfully');
                   }}
                 />
               </Dialog>

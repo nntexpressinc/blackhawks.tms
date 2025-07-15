@@ -77,10 +77,10 @@ const IftaPage = () => {
   ];
 
   const QUARTERS = [
-    { value: 'Quorter 1', label: 'Quarter 1 (Jan-Mar)' },
-    { value: 'Quorter 2', label: 'Quarter 2 (Apr-Jun)' },
-    { value: 'Quorter 3', label: 'Quarter 3 (Jul-Sep)' },
-    { value: 'Quorter 4', label: 'Quarter 4 (Oct-Dec)' },
+    { value: 'Quarter 1', label: 'Quarter 1 (Jan-Mar)' },
+    { value: 'Quarter 2', label: 'Quarter 2 (Apr-Jun)' },
+    { value: 'Quarter 3', label: 'Quarter 3 (Jul-Sep)' },
+    { value: 'Quarter 4', label: 'Quarter 4 (Oct-Dec)' },
   ];
 
   useEffect(() => {

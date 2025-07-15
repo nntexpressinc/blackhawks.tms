@@ -330,6 +330,12 @@ const TotalsSection = ({ reportData }) => (
       <Text style={styles.totalLabel}>Total Deductions:</Text>
       <Text style={[styles.totalValue, styles.negativeAmount]}>-{reportData.total_expenses?.Result || '$0.00'}</Text>
     </View>
+    {reportData.ifta_deduction && (
+      <View style={styles.totalRow}>
+        <Text style={styles.totalLabel}>IFTA Deduction:</Text>
+        <Text style={[styles.totalValue, styles.negativeAmount]}>{reportData.ifta_deduction.Formula}</Text>
+      </View>
+    )}
     <View style={styles.grandTotal}>
       <Text style={styles.grandTotalLabel}>Grand Total:</Text>
       <Text style={[styles.grandTotalValue, reportData.total_pay?.Result?.startsWith('-') ? styles.negativeAmount : styles.positiveAmount]}>{reportData.total_pay?.Result || '$0.00'}</Text>
@@ -399,9 +405,41 @@ const PayReport = ({ reportData }) => {
                       <Text style={[styles.tableCol, styles.negativeAmount, { width: '20%' }]}>-{expense.Result}</Text>
                     </View>
                   ))}
+                {reportData.ifta_deduction && (
+                  <View style={styles.tableRow}>
+                    <Text style={[styles.tableCol, { width: '80%' }]}>IFTA Deduction</Text>
+                    <Text style={[styles.tableCol, styles.negativeAmount, { width: '20%' }]}>{reportData.ifta_deduction.Formula}</Text>
+                  </View>
+                )}
               </View>
             </View>
           </View>
+          {/* IFTA Deduction Details */}
+          {reportData.ifta_deduction && reportData.ifta_deduction.Details && reportData.ifta_deduction.Details.length > 0 && (
+            <View wrap={false}>
+              <Text style={styles.sectionTitle}>IFTA Deduction Details</Text>
+              <View style={styles.deductionsTable}>
+                <View style={styles.table}>
+                  <View style={[styles.tableRow, styles.tableHeader]}>
+                    <Text style={[styles.tableCol, { width: '15%' }]}>State</Text>
+                    <Text style={[styles.tableCol, { width: '20%' }]}>Quarter</Text>
+                    <Text style={[styles.tableCol, { width: '20%' }]}>Total Miles</Text>
+                    <Text style={[styles.tableCol, { width: '20%' }]}>Tax Gallon</Text>
+                    <Text style={[styles.tableCol, { width: '25%' }]}>Tax Amount</Text>
+                  </View>
+                  {reportData.ifta_deduction.Details.map((detail, index) => (
+                    <View key={index} style={styles.tableRow}>
+                      <Text style={[styles.tableCol, { width: '15%' }]}>{detail.state}</Text>
+                      <Text style={[styles.tableCol, { width: '20%' }]}>{detail.quarter}</Text>
+                      <Text style={[styles.tableCol, { width: '20%' }]}>{detail.total_miles}</Text>
+                      <Text style={[styles.tableCol, { width: '20%' }]}>{detail.net_taxible_gallon}</Text>
+                      <Text style={[styles.tableCol, { width: '25%' }]}>{detail.tax_amount}</Text>
+                    </View>
+                  ))}
+                </View>
+              </View>
+            </View>
+          )}
           <View wrap={false}>
             <TotalsSection reportData={reportData} />
           </View>
