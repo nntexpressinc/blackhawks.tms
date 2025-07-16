@@ -147,7 +147,7 @@ const EditIftaModal = ({ record, drivers, quarters, states, onClose, onSuccess }
                 <option value="">Select Driver</option>
                 {drivers.map(driver => (
                   <option key={driver.id} value={driver.id}>
-                    {driver.first_name} {driver.last_name}
+                    {driver.user?.first_name} {driver.user?.last_name}
                   </option>
                 ))}
               </select>

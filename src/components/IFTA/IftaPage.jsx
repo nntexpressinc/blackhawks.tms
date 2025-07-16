@@ -359,7 +359,8 @@ const IftaPage = () => {
 
   const getDriverName = (driverId) => {
     const driver = drivers.find(d => d.id === driverId);
-    return driver ? `${driver.user.first_name} ${driver.user.last_name}` : 'Unknown';
+    // {driverData?.user?.first_name} {driverData?.user?.last_name}
+    return driver ? `${driver.user?.first_name} ${driver.user?.last_name}` : 'Unknown';
   };
 
   const formatAmount = (amount) => {
@@ -593,14 +594,81 @@ const IftaPage = () => {
                                                                   )
                                                                 ).flat().join(', ')}
                                                               </div>
-                                                              <div style={{ fontSize: '9px' }}>
-                                                                <strong>All Weeks:</strong> {Object.keys(driverTotals.years).map(y => 
-                                                                  Object.keys(driverTotals.years[y].quarters).map(q => 
-                                                                    Object.keys(driverTotals.years[y].quarters[q].weeks).map(w => 
-                                                                      `W${w}-${q}-${y} (${driverTotals.years[y].quarters[q].weeks[w].totalMiles.toFixed(0)}mi, ${formatAmount(driverTotals.years[y].quarters[q].weeks[w].totalTax)})`
-                                                                    )
-                                                                  )
-                                                                ).flat().flat().join(', ')}
+                                                              <div style={{ fontSize: '11px' }}>
+                                                                <strong>All Weeks:</strong>
+                                                                <div style={{ 
+                                                                  display: 'flex', 
+                                                                  gap: '30px', 
+                                                                  marginTop: '6px',
+                                                                  width: '100%'
+                                                                }}>
+                                                                  {(() => {
+                                                                    // Get all weeks data
+                                                                    const allWeeks = Object.keys(driverTotals.years).map(y => 
+                                                                      Object.keys(driverTotals.years[y].quarters).map(q => 
+                                                                        Object.keys(driverTotals.years[y].quarters[q].weeks).map(w => ({
+                                                                          week: parseInt(w),
+                                                                          quarter: q,
+                                                                          year: parseInt(y),
+                                                                          miles: driverTotals.years[y].quarters[q].weeks[w].totalMiles,
+                                                                          tax: driverTotals.years[y].quarters[q].weeks[w].totalTax
+                                                                        }))
+                                                                      )
+                                                                    ).flat().flat().sort((a, b) => {
+                                                                      // Sort by year first, then quarter, then week
+                                                                      if (a.year !== b.year) return a.year - b.year;
+                                                                      
+                                                                      // Extract quarter numbers for sorting
+                                                                      const getQuarterNum = (quarter) => parseInt(quarter.replace('Quarter ', ''));
+                                                                      const quarterA = getQuarterNum(a.quarter);
+                                                                      const quarterB = getQuarterNum(b.quarter);
+                                                                      
+                                                                      if (quarterA !== quarterB) return quarterA - quarterB;
+                                                                      return a.week - b.week;
+                                                                    });
+                                                                    
+                                                                    // Split into 3 groups
+                                                                    const chunkSize = Math.ceil(allWeeks.length / 4);
+                                                                    const chunks = [];
+                                                                    for (let i = 0; i < allWeeks.length; i += chunkSize) {
+                                                                      chunks.push(allWeeks.slice(i, i + chunkSize));
+                                                                    }
+                                                                    
+                                                                    return chunks.map((chunk, index) => (
+                                                                      <table key={index} style={{ 
+                                                                        width: 'calc(25% - 4px)',
+                                                                        borderCollapse: 'collapse', 
+                                                                        fontSize: '10px',
+                                                                        border: '1px solid #ddd'
+                                                                      }}>
+                                                                        <thead>
+                                                                          <tr style={{ backgroundColor: '#f0f8ff' }}>
+                                                                            <th style={{ padding: '4px 6px', border: '1px solid #ddd', fontWeight: 'bold', fontSize: '10px' }}>Week</th>
+                                                                            <th style={{ padding: '4px 6px', border: '1px solid #ddd', fontWeight: 'bold', fontSize: '10px' }}>Quarter</th>
+                                                                            <th style={{ padding: '4px 6px', border: '1px solid #ddd', fontWeight: 'bold', fontSize: '10px' }}>Year</th>
+                                                                            <th style={{ padding: '4px 6px', border: '1px solid #ddd', fontWeight: 'bold', fontSize: '10px' }}>Miles</th>
+                                                                            <th style={{ padding: '4px 6px', border: '1px solid #ddd', fontWeight: 'bold', fontSize: '10px' }}>Tax</th>
+                                                                          </tr>
+                                                                        </thead>
+                                                                        <tbody>
+                                                                          {chunk.map((weekData, rowIndex) => (
+                                                                            <tr key={`${weekData.year}-${weekData.quarter}-${weekData.week}`}>
+                                                                              <td style={{ padding: '4px 6px', border: '1px solid #ddd', textAlign: 'center', fontSize: '10px' }}>W{weekData.week}</td>
+                                                                              <td style={{ padding: '4px 6px', border: '1px solid #ddd', textAlign: 'center', fontSize: '10px' }}>{weekData.quarter}</td>
+                                                                              <td style={{ padding: '4px 6px', border: '1px solid #ddd', textAlign: 'center', fontSize: '10px' }}>{weekData.year}</td>
+                                                                              <td style={{ padding: '4px 6px', border: '1px solid #ddd', textAlign: 'right', fontSize: '10px' }}>
+                                                                                {weekData.miles.toFixed(0)}mi
+                                                                              </td>
+                                                                              <td style={{ padding: '4px 6px', border: '1px solid #ddd', textAlign: 'right', fontSize: '10px' }}>
+                                                                                {formatAmount(weekData.tax)}
+                                                                              </td>
+                                                                            </tr>
+                                                                          ))}
+                                                                        </tbody>
+                                                                      </table>
+                                                                    ));
+                                                                  })()}
+                                                                </div>
                                                               </div>
                                                             </div>
                                                           </div>
