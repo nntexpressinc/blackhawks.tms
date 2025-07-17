@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from "react";
-import { Typography, Box, Button, TextField, MenuItem, InputAdornment, Chip, IconButton, Tooltip } from "@mui/material";
+import { Typography, Box, Button, TextField, MenuItem, InputAdornment, Chip, IconButton, Tooltip, CircularProgress } from "@mui/material";
 import { DataGrid, GridToolbar } from '@mui/x-data-grid';
 import { ApiService } from "../../api/auth";
 import { saveAs } from 'file-saver';
@@ -22,6 +22,7 @@ const EmployeePage = () => {
   const [searchCategory, setSearchCategory] = useState("all");
   const [selectedStatus, setSelectedStatus] = useState(null);
   const [copiedId, setCopiedId] = useState(null);
+  const [loading, setLoading] = useState(true);
   const tableRef = useRef(null);
   const navigate = useNavigate();
   const { isSidebarOpen } = useSidebar();
@@ -43,6 +44,7 @@ const EmployeePage = () => {
 
   useEffect(() => {
     const fetchEmployeesData = async () => {
+      setLoading(true);
       const storedAccessToken = localStorage.getItem("accessToken");
       if (storedAccessToken) {
         try {
@@ -51,7 +53,11 @@ const EmployeePage = () => {
           setFilteredEmployees(data);
         } catch (error) {
           console.error("Error fetching employees data:", error);
+        } finally {
+          setLoading(false);
         }
+      } else {
+        setLoading(false);
       }
     };
 
@@ -337,7 +343,51 @@ const EmployeePage = () => {
       </Box>
 
       <Box sx={{ display: 'flex', gap: 2, flexGrow: 1, overflow: 'hidden' }}>
-        <Box sx={{ flexGrow: 1, overflow: 'hidden' }}>
+        <Box sx={{ flexGrow: 1, overflow: 'hidden', position: 'relative' }}>
+          {loading && (
+            <Box sx={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              backgroundColor: 'rgba(255, 255, 255, 0.9)',
+              zIndex: 1000,
+              borderRadius: '12px'
+            }}>
+              <CircularProgress 
+                size={60} 
+                sx={{ 
+                  color: '#3B82F6',
+                  mb: 2
+                }} 
+              />
+              <Typography 
+                variant="h6" 
+                sx={{ 
+                  color: '#6B7280',
+                  fontWeight: 500,
+                  textAlign: 'center'
+                }}
+              >
+                Loading employees...
+              </Typography>
+              <Typography 
+                variant="body2" 
+                sx={{ 
+                  color: '#9CA3AF',
+                  mt: 1,
+                  textAlign: 'center'
+                }}
+              >
+                Please wait while we fetch your data
+              </Typography>
+            </Box>
+          )}
           <DataGrid
             rows={filteredEmployees}
             columns={columns}

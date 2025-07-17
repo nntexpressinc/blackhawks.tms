@@ -558,6 +558,7 @@ const LoadsPage = () => {
   const [filterAnchorEl, setFilterAnchorEl] = useState(null);
   const [selectedRow, setSelectedRow] = useState(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
   const tableRef = useRef(null);
   const navigate = useNavigate();
   const { isSidebarOpen } = useSidebar();
@@ -623,6 +624,7 @@ const LoadsPage = () => {
 
   useEffect(() => {
     const fetchLoadsData = async () => {
+      setLoading(true);
       const storedAccessToken = localStorage.getItem("accessToken");
       if (storedAccessToken) {
         try {
@@ -679,7 +681,11 @@ const LoadsPage = () => {
           setFilteredLoads(formattedData);
         } catch (error) {
           console.error("Error fetching loads data:", error);
+        } finally {
+          setLoading(false);
         }
+      } else {
+        setLoading(false);
       }
     };
 
@@ -1211,7 +1217,51 @@ const LoadsPage = () => {
         ))}
       </Box>
       <Box sx={{ display: 'flex', gap: 2, flexGrow: 1, overflow: 'hidden' }}>
-        <Box sx={{ flexGrow: 1, overflow: 'hidden' }}>
+        <Box sx={{ flexGrow: 1, overflow: 'hidden', position: 'relative' }}>
+          {loading && (
+            <Box sx={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              backgroundColor: 'rgba(255, 255, 255, 0.9)',
+              zIndex: 1000,
+              borderRadius: '12px'
+            }}>
+              <CircularProgress 
+                size={60} 
+                sx={{ 
+                  color: '#3B82F6',
+                  mb: 2
+                }} 
+              />
+              <Typography 
+                variant="h6" 
+                sx={{ 
+                  color: '#6B7280',
+                  fontWeight: 500,
+                  textAlign: 'center'
+                }}
+              >
+                Loading loads...
+              </Typography>
+              <Typography 
+                variant="body2" 
+                sx={{ 
+                  color: '#9CA3AF',
+                  mt: 1,
+                  textAlign: 'center'
+                }}
+              >
+                Please wait while we fetch your data
+              </Typography>
+            </Box>
+          )}
           <DataGrid
             rows={filteredLoads}
             columns={columns}
