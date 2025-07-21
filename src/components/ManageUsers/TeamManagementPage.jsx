@@ -297,7 +297,7 @@ const TeamManagementPage = () => {
       return photoPath;
     }
     
-    return `https://blackhawks.biznes-armiya.uz${photoPath}`;
+    return `https://blackhawks.nntexpressinc.com${photoPath}`;
   };
 
   const getUnitNames = (unitIds) => {

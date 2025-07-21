@@ -1128,10 +1128,14 @@ const CreateLoadModal = ({ open, onClose, onCreateSuccess }) => {
 };
 
 const LoadViewPage = () => {
+  const [load, setLoad] = useState(null);
+  const [loadStatus, setLoadStatus] = useState('');
+  const [invoiceStatus, setInvoiceStatus] = useState('');
+  const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isLoadDataLoading, setIsLoadDataLoading] = useState(true);
   const { id } = useParams();
   const navigate = useNavigate();
-  const [load, setLoad] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
   const [chatMessages, setChatMessages] = useState([]);
   const [newMessage, setNewMessage] = useState("");
   const [selectedFile, setSelectedFile] = useState(null);
@@ -1148,7 +1152,6 @@ const LoadViewPage = () => {
   const copyMessageRef = useRef(null);
   const [chatRefreshInterval, setChatRefreshInterval] = useState(null);
   const [isChatLoading, setIsChatLoading] = useState(false);
-  const [isLoadDataLoading, setIsLoadDataLoading] = useState(true);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [editingStop, setEditingStop] = useState(null);
   const [stopFormData, setStopFormData] = useState({
@@ -1170,7 +1173,6 @@ const LoadViewPage = () => {
   });
   const [isAddingStop, setIsAddingStop] = useState(false);
   const [allStops, setAllStops] = useState([]);
-  const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
   const [compactView, setCompactView] = useState(true);
   const [editingSection, setEditingSection] = useState(null);
   const [editFormData, setEditFormData] = useState({});
@@ -1191,7 +1193,29 @@ const LoadViewPage = () => {
     stopName: ''
   });
   
-  // Define load statuses with icons and colors
+  useEffect(() => {
+    const fetchLoadData = async () => {
+      setIsLoading(true);
+      setIsLoadDataLoading(true);
+      try {
+        const data = await ApiService.getData(`/load/${id}/`);
+        setLoad(data);
+        setLoadStatus(data.load_status || 'OPEN');
+        setInvoiceStatus(data.invoice_status || 'NOT_DETERMINED');
+        // Fetch chat messages
+        fetchChatMessages();
+      } catch (error) {
+        console.error('Error fetching load data:', error);
+        showSnackbar('Error loading data', 'error');
+      } finally {
+        setIsLoading(false);
+        setIsLoadDataLoading(false);
+      }
+    };
+
+    fetchLoadData();
+  }, [id]);
+
   const loadStatusOptions = [
     { value: 'OPEN', label: 'Open', icon: <MdLocalShipping size={16} />, color: '#3B82F6' },
     { value: 'COVERED', label: 'Covered', icon: <MdDirectionsCar size={16} />, color: '#10B981' },
@@ -1203,69 +1227,6 @@ const LoadViewPage = () => {
     { value: 'COMPLETED', label: 'Completed', icon: <MdCheckCircle size={16} />, color: '#059669' },
     { value: 'IN_YARD', label: 'In Yard', icon: <MdHome size={16} />, color: '#6B7280' }
   ];
-  
-  // Function to handle status change
-  const handleStatusChange = async (event) => {
-    const newStatus = event.target.value;
-    if (newStatus === load.load_status) return;
-    
-    setIsUpdatingStatus(true);
-    try {
-      // Faqat load_status maydonini yuboramiz
-      await ApiService.putData(`/load/${id}/`, {
-        load_status: newStatus
-      });
-      
-      // Update local state
-      setLoad(prevLoad => ({
-        ...prevLoad,
-        load_status: newStatus
-      }));
-      
-      showSnackbar("Load status updated successfully", "success");
-    } catch (error) {
-      console.error("Error updating load status:", error);
-      showSnackbar("Failed to update load status", "error");
-    } finally {
-      setIsUpdatingStatus(false);
-    }
-  };
-  
-  // Function to get current status option
-  const getCurrentStatusOption = () => {
-    return loadStatusOptions.find(option => 
-      option.value === load?.load_status
-    ) || loadStatusOptions[0];
-  };
-
-  // Helper function to format date
-  const formatMessageTime = (timestamp) => {
-    if (!timestamp) return "Invalid Date";
-    
-    const messageDate = new Date(timestamp);
-    const today = new Date();
-    const yesterday = new Date();
-    yesterday.setDate(today.getDate() - 1);
-    
-    // If message from today, just show time
-    if (messageDate.toDateString() === today.toDateString()) {
-      return messageDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
-    }
-    
-    // If message from yesterday, show 'Yesterday' + time
-    if (messageDate.toDateString() === yesterday.toDateString()) {
-      return `Yesterday, ${messageDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`;
-    }
-    
-    // Otherwise show full date
-    return messageDate.toLocaleString('en-US', {
-      hour: '2-digit',
-      minute: '2-digit',
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric'
-    });
-  };
 
   // Load steps for the stepper
   const loadStatuses = [
@@ -1276,53 +1237,15 @@ const LoadViewPage = () => {
     { id: 5, name: "On Route" },
     { id: 6, name: "Unloading" },
     { id: 7, name: "Delivered" },
-    { id: 8, name: "Completed" },
+    { id: 8, name: "Completed" }
   ];
 
-  useEffect(() => {
-    // Get user information from localStorage
-    const userInfo = localStorage.getItem("user") 
-      ? JSON.parse(localStorage.getItem("user")) 
-      : { _id: parseInt(localStorage.getItem("userid")) };
-    setUser(userInfo);
-    
-    const fetchLoadData = async () => {
-      setIsLoading(true);
-      setIsLoadDataLoading(true);
-      try {
-        const data = await ApiService.getData(`/load/${id}/`);
-        setLoad(data);
-        
-        // Endi alohida fetchAllStops ga murojat qilinmaydi, chunki load ichida stop keladi
-        // Biz setLoad(data) qilganda, load.stop ham yangilanadi
-        
-        // Fetch chat messages
-        fetchChatMessages();
-      } catch (error) {
-        console.error("Error fetching load data:", error);
-        setError("Could not load data. Please try again.");
-      } finally {
-        setIsLoading(false);
-        setIsLoadDataLoading(false);
-      }
-    };
-
-    fetchLoadData();
-
-    // Set up auto-refresh for chat messages every 5 seconds
-    const interval = setInterval(() => {
-      fetchChatMessages();
-    }, 5000);
-    
-    setChatRefreshInterval(interval);
-
-    // Clean up on unmount
-    return () => {
-      if (chatRefreshInterval) {
-        clearInterval(chatRefreshInterval);
-      }
-    };
-  }, [id]);
+  const invoiceStatusOptions = [
+    { value: 'NOT_DETERMINED', label: 'Not Determined', color: '#9CA3AF' },
+    { value: 'INVOICED', label: 'Invoiced', color: '#3B82F6' },
+    { value: 'PAID', label: 'Paid', color: '#10B981' },
+    { value: 'UNPAID', label: 'Unpaid', color: '#EF4444' }
+  ];
 
   const fetchUserData = async (userId) => {
     // Check if we already have this user's data
@@ -1585,13 +1508,13 @@ const LoadViewPage = () => {
   // Format profile photo URL to use production API
   const getFormattedProfilePhotoUrl = (url) => {
     if (!url) return "";
-    return url.replace('https://0.0.0.0:8000/', 'https://blackhawks.biznes-armiya.uz/');
+    return url.replace('https://0.0.0.0:8000/', 'https://blackhawks.nntexpressinc.com/');
   };
   
   // Format file URL to use production API
   const getFormattedFileUrl = (url) => {
     if (!url) return "";
-    return url.replace('https://0.0.0.0:8000/', 'https://blackhawks.biznes-armiya.uz/');
+    return url.replace('https://0.0.0.0:8000/', 'https://blackhawks.nntexpressinc.com/');
   };
 
   // Format detailed timestamp with seconds
@@ -2368,7 +2291,7 @@ const LoadViewPage = () => {
   // Function to format file URL correctly
   const getFormattedDocumentUrl = (url) => {
     if (!url) return "";
-    return url.replace('https://0.0.0.0:8000/', 'https://blackhawks.biznes-armiya.uz/');
+    return url.replace('https://0.0.0.0:8000/', 'https://blackhawks.nntexpressinc.com/');
   };
   
   
@@ -3047,6 +2970,97 @@ const LoadViewPage = () => {
         driver: driverId
       }));
     }
+  };
+
+  const handleInvoiceStatusChange = async (event) => {
+    const newStatus = event.target.value;
+    if (newStatus === load.invoice_status) return;
+    
+    setIsUpdatingStatus(true);
+    try {
+      await ApiService.putData(`/load/${id}/`, {
+        invoice_status: newStatus
+      });
+      
+      setLoad(prevLoad => ({
+        ...prevLoad,
+        invoice_status: newStatus
+      }));
+      
+      showSnackbar("Invoice status updated successfully", "success");
+    } catch (error) {
+      console.error("Error updating invoice status:", error);
+      showSnackbar("Failed to update invoice status", "error");
+    } finally {
+      setIsUpdatingStatus(false);
+    }
+  };
+
+  const getCurrentInvoiceStatusOption = () => {
+    return invoiceStatusOptions.find(option => 
+      option.value === load?.invoice_status
+    ) || invoiceStatusOptions[0];
+  };
+
+  // Function to handle status change
+  const handleStatusChange = async (event) => {
+    const newStatus = event.target.value;
+    if (newStatus === load.load_status) return;
+    
+    setIsUpdatingStatus(true);
+    try {
+      await ApiService.putData(`/load/${id}/`, {
+        load_status: newStatus
+      });
+      
+      setLoad(prevLoad => ({
+        ...prevLoad,
+        load_status: newStatus
+      }));
+      
+      showSnackbar("Load status updated successfully", "success");
+    } catch (error) {
+      console.error("Error updating load status:", error);
+      showSnackbar("Failed to update load status", "error");
+    } finally {
+      setIsUpdatingStatus(false);
+    }
+  };
+
+  // Function to get current status option
+  const getCurrentStatusOption = () => {
+    return loadStatusOptions.find(option => 
+      option.value === load?.load_status
+    ) || loadStatusOptions[0];
+  };
+
+  // Helper function to format date
+  const formatMessageTime = (timestamp) => {
+    if (!timestamp) return "Invalid Date";
+    
+    const messageDate = new Date(timestamp);
+    const today = new Date();
+    const yesterday = new Date();
+    yesterday.setDate(today.getDate() - 1);
+    
+    // If message from today, just show time
+    if (messageDate.toDateString() === today.toDateString()) {
+      return messageDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+    }
+    
+    // If message from yesterday, show 'Yesterday' + time
+    if (messageDate.toDateString() === yesterday.toDateString()) {
+      return `Yesterday, ${messageDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`;
+    }
+    
+    // Otherwise show full date
+    return messageDate.toLocaleString('en-US', {
+      hour: '2-digit',
+      minute: '2-digit',
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric'
+    });
   };
 
   return (
@@ -4041,65 +4055,153 @@ const LoadViewPage = () => {
       <MiddlePanel>
         <Panel>
           <PanelHeader>
-            <Typography variant="h6">Chat</Typography>
-            
-            {!isLoadDataLoading && (
-              <StatusSelector>
-                <Select
-                  value={load?.load_status || 'OPEN'}
-                  onChange={handleStatusChange}
-                  disabled={isUpdatingStatus}
-                  sx={{
-                    height: 36,
-                    minWidth: 180,
-                    '.MuiSelect-select': {
-                      display: 'flex',
-                      alignItems: 'center',
-                      paddingY: 0.5
-                    }
-                  }}
-                  MenuProps={{
-                    PaperProps: {
-                      sx: { maxHeight: 400 }
-                    }
-                  }}
-                  renderValue={(selected) => {
-                    const option = loadStatusOptions.find(opt => opt.value === selected);
-                    return (
-                      <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                        <StatusIconContainer color={option?.color}>
-                          {option?.icon}
-                        </StatusIconContainer>
-                        <Typography variant="body2" fontWeight={500}>
-                          {option?.label || 'Status'}
-                        </Typography>
-                      </Box>
-                    );
-                  }}
-                >
-                  {loadStatusOptions.map((option) => (
-                    <MenuItem key={option.value} value={option.value}>
-                      <Box sx={{ display: 'flex', alignItems: 'center', width: '100%' }}>
-                        <StatusIconContainer color={option.color}>
-                          {option.icon}
-                        </StatusIconContainer>
-                        <Typography variant="body2">
-                          {option.label}
-                        </Typography>
-                      </Box>
-                    </MenuItem>
-                  ))}
-                </Select>
-              </StatusSelector>
-            )}
-            
-            <IconButton onClick={handleRefreshChat} disabled={isChatLoading}>
-              {isChatLoading ? (
-                <CircularProgress size={24} thickness={4} />
-              ) : (
-                <RefreshIcon />
+            <Box sx={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'space-between',
+              width: '100%',
+              gap: 2
+            }}>
+              <Typography variant="h6">Chat</Typography>
+              
+              {!isLoadDataLoading && (
+                <Box sx={{ 
+                  display: 'flex', 
+                  gap: 2,
+                  flex: 1,
+                  overflowX: 'auto',
+                  '&::-webkit-scrollbar': {
+                    height: '4px',
+                  },
+                  '&::-webkit-scrollbar-track': {
+                    background: '#f1f1f1',
+                  },
+                  '&::-webkit-scrollbar-thumb': {
+                    background: '#888',
+                    borderRadius: '2px',
+                  },
+                  '&::-webkit-scrollbar-thumb:hover': {
+                    background: '#555',
+                  }
+                }}>
+                  <StatusSelector>
+                    <Select
+                      value={load?.load_status || 'OPEN'}
+                      onChange={handleStatusChange}
+                      disabled={isUpdatingStatus}
+                      sx={{
+                        height: 36,
+                        width: { xs: 150, sm: 180 },
+                        '.MuiSelect-select': {
+                          display: 'flex',
+                          alignItems: 'center',
+                          paddingY: 0.5,
+                          whiteSpace: 'nowrap'
+                        }
+                      }}
+                      MenuProps={{
+                        PaperProps: {
+                          sx: { maxHeight: 400 }
+                        }
+                      }}
+                      renderValue={(selected) => {
+                        const option = loadStatusOptions.find(opt => opt.value === selected);
+                        return (
+                          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                            <StatusIconContainer color={option?.color}>
+                              {option?.icon}
+                            </StatusIconContainer>
+                            <Typography variant="body2" fontWeight={500}>
+                              {option?.label || 'Status'}
+                            </Typography>
+                          </Box>
+                        );
+                      }}
+                    >
+                      {loadStatusOptions.map((option) => (
+                        <MenuItem key={option.value} value={option.value}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', width: '100%' }}>
+                            <StatusIconContainer color={option.color}>
+                              {option.icon}
+                            </StatusIconContainer>
+                            <Typography variant="body2">
+                              {option.label}
+                            </Typography>
+                          </Box>
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </StatusSelector>
+
+                  <StatusSelector>
+                    <Select
+                      value={load?.invoice_status || 'NOT_DETERMINED'}
+                      onChange={handleInvoiceStatusChange}
+                      disabled={isUpdatingStatus}
+                      sx={{
+                        height: 36,
+                        width: { xs: 150, sm: 180 },
+                        '.MuiSelect-select': {
+                          display: 'flex',
+                          alignItems: 'center',
+                          paddingY: 0.5,
+                          whiteSpace: 'nowrap'
+                        }
+                      }}
+                      MenuProps={{
+                        PaperProps: {
+                          sx: { maxHeight: 400 }
+                        }
+                      }}
+                      renderValue={(selected) => {
+                        const option = invoiceStatusOptions.find(opt => opt.value === selected);
+                        return (
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <Box
+                              sx={{
+                                width: 8,
+                                height: 8,
+                                borderRadius: '50%',
+                                backgroundColor: option?.color || '#9CA3AF'
+                              }}
+                            />
+                            <Typography variant="body2" fontWeight={500}>
+                              {option?.label || 'Not Determined'}
+                            </Typography>
+                          </Box>
+                        );
+                      }}
+                    >
+                      {invoiceStatusOptions.map((option) => (
+                        <MenuItem key={option.value} value={option.value}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', width: '100%', gap: 1 }}>
+                            <Box
+                              sx={{
+                                width: 8,
+                                height: 8,
+                                borderRadius: '50%',
+                                backgroundColor: option.color
+                              }}
+                            />
+                            <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                              {option.label}
+                            </Typography>
+                          </Box>
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </StatusSelector>
+                </Box>
               )}
-            </IconButton>
+              
+              <IconButton onClick={handleRefreshChat} disabled={isChatLoading}>
+                {isChatLoading ? (
+                  <CircularProgress size={24} thickness={4} />
+                ) : (
+                  <RefreshIcon />
+                )}
+              </IconButton>
+            </Box>
           </PanelHeader>
           
           <Box sx={{ 
@@ -5791,6 +5893,8 @@ const LoadViewPage = () => {
           </Button>
         </DialogActions>
       </Dialog>
+
+
     </MainContainer>
   );
 };

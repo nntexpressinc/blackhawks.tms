@@ -107,7 +107,7 @@ const Navbar = () => {
   // Format profile photo URL to use production API
   const getFormattedProfilePhotoUrl = (url) => {
     if (!url) return "";
-    return url.replace('https://0.0.0.0:8000/', 'https://blackhawks.biznes-armiya.uz/');
+    return url.replace('https://0.0.0.0:8000/', 'https://blackhawks.nntexpressinc.com/');
   };
 
   // Foydalanuvchi to'liq ismi yoki emaili

@@ -9,7 +9,7 @@ import CompanyDriverPDF from './CompanyDriverPDF';
 import './AccountingPage.css';
 import moment from 'moment';
 
-const API_URL = 'https://blackhawks.biznes-armiya.uz';
+const API_URL = 'https://blackhawks.nntexpressinc.com';
 
 const ensureArray = (data) => {
   if (!data) return [];

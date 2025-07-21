@@ -555,6 +555,7 @@ const LoadsPage = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [searchCategory, setSearchCategory] = useState("all");
   const [selectedStatus, setSelectedStatus] = useState(null);
+  const [selectedInvoiceStatus, setSelectedInvoiceStatus] = useState(null);
   const [filterAnchorEl, setFilterAnchorEl] = useState(null);
   const [selectedRow, setSelectedRow] = useState(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -574,6 +575,13 @@ const LoadsPage = () => {
     { value: 'delivered', label: 'Delivered', icon: <MdDoneAll />, color: '#10B981' },
     { value: 'completed', label: 'Completed', icon: <MdCheckCircle />, color: '#059669' },
     { value: 'in_yard', label: 'In Yard', icon: <MdHome />, color: '#6B7280' }
+  ];
+
+  const invoiceStatuses = [
+    { value: 'NOT_DETERMINED', label: 'Not Determined', color: '#9CA3AF' },
+    { value: 'INVOICED', label: 'Invoiced', color: '#3B82F6' },
+    { value: 'PAID', label: 'Paid', color: '#10B981' },
+    { value: 'UNPAID', label: 'Unpaid', color: '#EF4444' }
   ];
 
   const handleFilterClick = (event) => {
@@ -596,15 +604,30 @@ const LoadsPage = () => {
 
   const handleStatusFilter = (status) => {
     setSelectedStatus(status === selectedStatus ? null : status);
-    if (status === selectedStatus) {
-      setFilteredLoads(loads);
-    } else {
-      const filtered = loads.filter(load => {
-        if (!load || !load.load_status) return false;
-        return load.load_status.toLowerCase() === status.toLowerCase();
-      });
-      setFilteredLoads(filtered);
+    filterLoads(status === selectedStatus ? null : status, selectedInvoiceStatus);
+  };
+
+  const handleInvoiceStatusFilter = (status) => {
+    setSelectedInvoiceStatus(status === selectedInvoiceStatus ? null : status);
+    filterLoads(selectedStatus, status === selectedInvoiceStatus ? null : status);
+  };
+
+  const filterLoads = (loadStatus, invoiceStatus) => {
+    let filtered = [...loads];
+
+    if (loadStatus) {
+      filtered = filtered.filter(load => 
+        load.load_status?.toLowerCase() === loadStatus.toLowerCase()
+      );
     }
+
+    if (invoiceStatus) {
+      filtered = filtered.filter(load => 
+        load.invoice_status === invoiceStatus
+      );
+    }
+
+    setFilteredLoads(filtered);
   };
 
   const searchCategories = [
@@ -1183,38 +1206,101 @@ const LoadsPage = () => {
 
       <Box sx={{
         display: 'flex',
-        gap: 1,
+        flexDirection: 'column',
         mb: 2,
-        flexWrap: 'wrap',
         backgroundColor: 'white',
         p: 2,
         borderRadius: '12px',
         boxShadow: '0 2px 4px rgba(0,0,0,0.05)'
       }}>
-        {loadStatuses.map((status) => (
-          <Chip
-            key={status.value}
-            label={status.label}
-            icon={status.icon}
-            onClick={() => handleStatusFilter(status.value)}
-            sx={{
-              backgroundColor: selectedStatus === status.value ? status.color : 'transparent',
-              color: selectedStatus === status.value ? 'white' : 'inherit',
-              borderColor: status.color,
-              border: '1px solid',
-              '& .MuiChip-icon': {
-                color: selectedStatus === status.value ? 'white' : status.color,
-              },
-              '&:hover': {
-                backgroundColor: status.color,
-                color: 'white',
-                '& .MuiChip-icon': {
-                  color: 'white',
-                }
-              }
-            }}
-          />
-        ))}
+        <Box sx={{ 
+          display: 'flex', 
+          gap: 4,
+          overflowX: 'auto',
+          pb: 1,
+          '&::-webkit-scrollbar': {
+            height: '4px',
+          },
+          '&::-webkit-scrollbar-track': {
+            background: '#f1f1f1',
+          },
+          '&::-webkit-scrollbar-thumb': {
+            background: '#888',
+            borderRadius: '2px',
+          },
+          '&::-webkit-scrollbar-thumb:hover': {
+            background: '#555',
+          }
+        }}>
+          <Box>
+            <Typography variant="subtitle2" sx={{ fontWeight: 600, color: '#374151', mb: 2 }}>
+              Load Status
+            </Typography>
+            <Box sx={{ 
+              display: 'flex', 
+              gap: 1,
+              flexWrap: { xs: 'nowrap', md: 'wrap' },
+              minWidth: 'max-content'
+            }}>
+              {loadStatuses.map((status) => (
+                <Chip
+                  key={status.value}
+                  label={status.label}
+                  icon={status.icon}
+                  onClick={() => handleStatusFilter(status.value)}
+                  sx={{
+                    backgroundColor: selectedStatus === status.value ? status.color : 'transparent',
+                    color: selectedStatus === status.value ? 'white' : 'inherit',
+                    borderColor: status.color,
+                    border: '1px solid',
+                    whiteSpace: 'nowrap',
+                    '& .MuiChip-icon': {
+                      color: selectedStatus === status.value ? 'white' : status.color,
+                    },
+                    '&:hover': {
+                      backgroundColor: status.color,
+                      color: 'white',
+                      '& .MuiChip-icon': {
+                        color: 'white',
+                      }
+                    }
+                  }}
+                />
+              ))}
+            </Box>
+          </Box>
+
+          <Box>
+            <Typography variant="subtitle2" sx={{ fontWeight: 600, color: '#374151', mb: 2 }}>
+              Invoice Status
+            </Typography>
+            <Box sx={{ 
+              display: 'flex', 
+              gap: 1,
+              flexWrap: { xs: 'nowrap', md: 'wrap' },
+              minWidth: 'max-content'
+            }}>
+              {invoiceStatuses.map((status) => (
+                <Chip
+                  key={status.value}
+                  label={status.label}
+                  onClick={() => handleInvoiceStatusFilter(status.value)}
+                  sx={{
+                    backgroundColor: selectedInvoiceStatus === status.value ? status.color : 'transparent',
+                    color: selectedInvoiceStatus === status.value ? 'white' : 'inherit',
+                    borderColor: status.color,
+                    border: '1px solid',
+                    whiteSpace: 'nowrap',
+                    '&:hover': {
+                      backgroundColor: status.color,
+                      color: 'white',
+                    }
+                  }}
+                />
+              ))}
+            </Box>
+          </Box>
+        </Box>
       </Box>
       <Box sx={{ display: 'flex', gap: 2, flexGrow: 1, overflow: 'hidden' }}>
         <Box sx={{ flexGrow: 1, overflow: 'hidden', position: 'relative' }}>

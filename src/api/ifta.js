@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_URL = 'https://blackhawks.biznes-armiya.uz/api';
+const API_URL = 'https://blackhawks.nntexpressinc.com/api';
 
 export const getIftaRecords = async () => {
   try {

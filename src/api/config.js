@@ -1,4 +1,4 @@
-export const BASE_URL = 'https://blackhawks.biznes-armiya.uz/api';
+export const BASE_URL = 'https://blackhawks.nntexpressinc.com/api';
 
 export const API_ENDPOINTS = {
   DRIVER: {
