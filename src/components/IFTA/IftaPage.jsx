@@ -7,6 +7,7 @@ import EditIftaModal from './EditIftaModal';
 import CreateFuelTaxRatesModal from './CreateFuelTaxRatesModal';
 import './IftaPage.css';
 import { useLocation } from 'react-router-dom';
+import IftaReportsPage from './IftaReportsPage';
 
 const IftaPage = () => {
   // const { t } = useTranslation(); // Translation not used yet
@@ -93,6 +94,8 @@ const IftaPage = () => {
     { value: 'Quarter 3', label: 'Quarter 3' },
     { value: 'Quarter 4', label: 'Quarter 4' },
   ];
+
+  const [showCreateIftaReportModal, setShowCreateIftaReportModal] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -400,6 +403,14 @@ const IftaPage = () => {
                 Create Fuel Tax Rates
               </button>
             )}
+            {activeTab === 'ifta-reports' && (
+              <button
+                className="btn-primary"
+                onClick={() => setShowCreateIftaReportModal(true)}
+              >
+                Create IFTA Report
+              </button>
+            )}
           </div>
         </div>
 
@@ -417,6 +428,12 @@ const IftaPage = () => {
               onClick={() => setActiveTab('fuel-tax-rates')}
             >
               Fuel Tax Rates
+            </button>
+            <button
+              className={`tab-button ${activeTab === 'ifta-reports' ? 'active' : ''}`}
+              onClick={() => setActiveTab('ifta-reports')}
+            >
+              Ifta Reports
             </button>
           </div>
         </div>
@@ -757,7 +774,7 @@ const IftaPage = () => {
                 })
             )}
           </div>
-        ) : (
+        ) : activeTab === 'fuel-tax-rates' ? (
           // Fuel Tax Rates Table - Quarter-wise grouped
           <div className="fuel-tax-rates">
             {Object.keys(getGroupedFuelTaxRates()).length === 0 ? (
@@ -832,6 +849,8 @@ const IftaPage = () => {
               ))
             )}
           </div>
+        ) : (
+          <IftaReportsPage showCreateModal={showCreateIftaReportModal} setShowCreateModal={setShowCreateIftaReportModal} />
         )}
 
         {showCreateModal && (
