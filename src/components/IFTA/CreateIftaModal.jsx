@@ -6,6 +6,7 @@ const CreateIftaModal = ({ drivers, quarters, states, onClose, onSuccess, preSel
   const { t } = useTranslation();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [permissions, setPermissions] = useState({});
   const [formData, setFormData] = useState({
     quarter: '',
     weekly_number: '',
@@ -19,6 +20,21 @@ const CreateIftaModal = ({ drivers, quarters, states, onClose, onSuccess, preSel
       }
     ]
   });
+
+  // Read permissions from localStorage
+  useEffect(() => {
+    const permissionsEnc = localStorage.getItem("permissionsEnc");
+    if (permissionsEnc) {
+      try {
+        const decoded = JSON.parse(decodeURIComponent(escape(atob(permissionsEnc))));
+        setPermissions(decoded);
+      } catch (e) {
+        setPermissions({});
+      }
+    } else {
+      setPermissions({});
+    }
+  }, []);
 
   // If preSelectedDriver changes, update formData
   useEffect(() => {
@@ -100,6 +116,11 @@ const CreateIftaModal = ({ drivers, quarters, states, onClose, onSuccess, preSel
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    if (!permissions.ifta_create) {
+      setError('You do not have permission to create IFTA records');
+      return;
+    }
     
     if (!validateForm()) return;
 

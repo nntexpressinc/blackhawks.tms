@@ -118,11 +118,11 @@ const ManageUsersPage = () => {
         ApiService.getData('/auth/users/')
       ]);
 
-      // Ma'lumotlarni massivga o'tkazish
+      // Convert data to arrays
       const rolesArray = Array.isArray(rolesData) ? rolesData : [];
       const usersArray = Array.isArray(usersData) ? usersData : [];
 
-      // Rollar bo'yicha userlar sonini hisoblash
+      // Calculate user count by role
       const counts = {};
       usersArray.forEach(user => {
         counts[user.role] = (counts[user.role] || 0) + 1;
@@ -281,7 +281,7 @@ const ManageUsersPage = () => {
 
   const getUsersByRole = (roleId) => {
     if (roleId === null) {
-      // Default role uchun (role=null yoki role=0 bo'lgan userlar)
+      // Default role (users with role=null or role=0)
       return users.filter(user => !user.role || user.role === 0);
     }
     return users.filter(user => user.role === roleId);

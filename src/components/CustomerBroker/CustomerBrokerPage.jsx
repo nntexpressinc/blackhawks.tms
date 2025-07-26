@@ -23,9 +23,25 @@ const CustomerBrokerPage = () => {
   const [selectedStatus, setSelectedStatus] = useState(null);
   const [copiedContact, setCopiedContact] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [permissions, setPermissions] = useState({});
   const tableRef = useRef(null);
   const navigate = useNavigate();
   const { isSidebarOpen } = useSidebar();
+
+  // Read permissions from localStorage
+  useEffect(() => {
+    const permissionsEnc = localStorage.getItem("permissionsEnc");
+    if (permissionsEnc) {
+      try {
+        const decoded = JSON.parse(decodeURIComponent(escape(atob(permissionsEnc))));
+        setPermissions(decoded);
+      } catch (e) {
+        setPermissions({});
+      }
+    } else {
+      setPermissions({});
+    }
+  }, []);
 
   const customerBrokerStatuses = [
     { value: 'ACTIVE', label: 'Active', color: '#10B981' },
@@ -403,19 +419,21 @@ const CustomerBrokerPage = () => {
             <FilterListIcon />
           </IconButton>
         </Box>
-        <Button 
-          variant="contained" 
-          color="primary" 
-          onClick={handleCreateCustomerBroker}
-          sx={{
-            height: '32px',
-            textTransform: 'none',
-            px: 2,
-            whiteSpace: 'nowrap'
-          }}
-        >
-          Create Customer Broker
-        </Button>
+        {permissions.customerbroker_create && (
+          <Button 
+            variant="contained" 
+            color="primary" 
+            onClick={handleCreateCustomerBroker}
+            sx={{
+              height: '32px',
+              textTransform: 'none',
+              px: 2,
+              whiteSpace: 'nowrap'
+            }}
+          >
+            Create Customer Broker
+          </Button>
+        )}
       </Box>
 
       {/* Status Filter Buttons */}

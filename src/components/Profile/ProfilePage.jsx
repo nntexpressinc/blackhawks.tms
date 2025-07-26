@@ -12,25 +12,64 @@ import PersonIcon from '@mui/icons-material/Person';
 
 const ProfilePage = () => {
   const [user, setUser] = useState(null);
+  const [roleName, setRoleName] = useState('');
   const navigate = useNavigate();
 
   useEffect(() => {
     const fetchUserData = async () => {
-      const storedUserId = localStorage.getItem("userId");
+      const storedUserId = localStorage.getItem("userid");
       const storedAccessToken = localStorage.getItem("accessToken");
+      const storedUserData = localStorage.getItem("user");
 
-      if (storedUserId && storedAccessToken) {
+      // Read encoded role and permissions from localStorage
+      const roleNameEnc = localStorage.getItem("roleNameEnc");
+      if (roleNameEnc) {
         try {
-          const data = await ApiService.getData(`/auth/users/${storedUserId}/`, storedAccessToken);
+          const decodedRole = decodeURIComponent(escape(atob(roleNameEnc)));
+          setRoleName(decodedRole);
+        } catch (e) {
+          setRoleName("");
+        }
+      }
+
+      if (storedUserData) {
+        try {
+          const parsedUserData = JSON.parse(storedUserData);
+          setUser(parsedUserData);
+        } catch (parseError) {
+          console.error("Error parsing stored user data:", parseError);
+          // If parsing fails, fetch from API
+          if (storedUserId && storedAccessToken) {
+            try {
+              const data = await ApiService.getData(`/auth/users/${storedUserId}/`);
+              setUser(data);
+              localStorage.setItem("user", JSON.stringify(data));
+            } catch (error) {
+              console.error("Error fetching user data:", error);
+              if (error.response?.status === 401) {
+                localStorage.clear();
+                navigate('/auth/login');
+              }
+            }
+          }
+        }
+      } else if (storedUserId && storedAccessToken) {
+        try {
+          const data = await ApiService.getData(`/auth/users/${storedUserId}/`);
           setUser(data);
+          localStorage.setItem("user", JSON.stringify(data));
         } catch (error) {
           console.error("Error fetching user data:", error);
+          if (error.response?.status === 401) {
+            localStorage.clear();
+            navigate('/auth/login');
+          }
         }
       }
     };
 
     fetchUserData();
-  }, []);
+  }, [navigate]);
 
   return (
     <Box sx={{ 
@@ -76,7 +115,7 @@ const ProfilePage = () => {
               {`${user.first_name} ${user.last_name}`}
             </Typography>
             <Typography variant="subtitle1" sx={{ color: 'text.secondary' }}>
-              {user.role}
+              {roleName || 'No role assigned'}
             </Typography>
           </Box>
 

@@ -33,8 +33,8 @@ import CheckIcon from '@mui/icons-material/Check';
 import { MdCheckCircle, MdCancel, MdPending } from 'react-icons/md';
 
 const TruckTrailerPage = ({ type = 'truck' }) => {
-  const [items, setItems] = useState([]);
-  const [filteredItems, setFilteredItems] = useState([]);
+  const [data, setData] = useState([]);
+  const [filteredData, setFilteredData] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [searchCategory, setSearchCategory] = useState("all");
   const [selectedStatus, setSelectedStatus] = useState(null);
@@ -47,6 +47,23 @@ const TruckTrailerPage = ({ type = 'truck' }) => {
   const tableRef = useRef(null);
   const navigate = useNavigate();
   const { isSidebarOpen } = useSidebar();
+
+  // Read permissions from localStorage
+  useEffect(() => {
+    const permissionsEnc = localStorage.getItem("permissionsEnc");
+    if (permissionsEnc) {
+      try {
+        const decoded = JSON.parse(decodeURIComponent(escape(atob(permissionsEnc))));
+        // Assuming permissions are stored in a state variable, e.g., setPermissions(decoded);
+        // For now, we'll just log it or use it if needed.
+        console.log("Permissions:", decoded);
+      } catch (e) {
+        // setPermissions({}); // This line was removed from the new_code, so it's removed here.
+      }
+    } else {
+      // setPermissions({}); // This line was removed from the new_code, so it's removed here.
+    }
+  }, []);
 
   const statuses = [
     { value: 'ACTIVE', label: 'Active', icon: <MdCheckCircle />, color: '#10B981' },
@@ -95,8 +112,8 @@ const TruckTrailerPage = ({ type = 'truck' }) => {
     try {
       const endpoint = type === 'truck' ? '/truck/' : '/trailer/';
       const data = await ApiService.getData(endpoint);
-      setItems(data);
-      setFilteredItems(data);
+      setData(data);
+      setFilteredData(data);
       setError(null);
     } catch (error) {
       setError(`Error fetching ${type} data: ${error.message}`);
@@ -125,11 +142,11 @@ const TruckTrailerPage = ({ type = 'truck' }) => {
 
   const handleSearch = () => {
     if (searchTerm === "") {
-      setFilteredItems(items);
+      setFilteredData(data);
       return;
     }
 
-    const filtered = items.filter(item => {
+    const filtered = data.filter(item => {
       if (searchCategory === "all") {
         return Object.values(item).some(value => 
           String(value).toLowerCase().includes(searchTerm.toLowerCase())
@@ -141,40 +158,40 @@ const TruckTrailerPage = ({ type = 'truck' }) => {
       }
     });
 
-    setFilteredItems(filtered);
+    setFilteredData(filtered);
   };
 
   useEffect(() => {
     handleSearch();
-  }, [searchTerm, searchCategory, items]);
+  }, [searchTerm, searchCategory, data]);
 
   const handleStatusFilter = (status) => {
     setSelectedStatus(status === selectedStatus ? null : status);
     if (status === selectedStatus) {
-      setFilteredItems(items);
+      setFilteredData(data);
     } else {
-      const filtered = items.filter(item => item.status === status);
-      setFilteredItems(filtered);
+      const filtered = data.filter(item => item.status === status);
+      setFilteredData(filtered);
     }
   };
 
   const handleTypeFilter = (trailerType) => {
     setSelectedStatus(trailerType === selectedStatus ? null : trailerType);
     if (trailerType === selectedStatus) {
-      setFilteredItems(items);
+      setFilteredData(data);
     } else {
-      const filtered = items.filter(item => item.type === trailerType);
-      setFilteredItems(filtered);
+      const filtered = data.filter(item => item.type === trailerType);
+      setFilteredData(filtered);
     }
   };
 
   const handleOwnershipFilter = (ownership) => {
     setSelectedStatus(ownership === selectedStatus ? null : ownership);
     if (ownership === selectedStatus) {
-      setFilteredItems(items);
+      setFilteredData(data);
     } else {
-      const filtered = items.filter(item => item.ownership_type === ownership);
-      setFilteredItems(filtered);
+      const filtered = data.filter(item => item.ownership_type === ownership);
+      setFilteredData(filtered);
     }
   };
 
@@ -841,7 +858,7 @@ const TruckTrailerPage = ({ type = 'truck' }) => {
             </Box>
           )}
           <DataGrid
-            rows={filteredItems}
+            rows={filteredData}
             columns={columns}
             pageSize={10}
             rowsPerPageOptions={[10, 20, 50]}

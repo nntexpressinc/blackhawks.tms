@@ -23,9 +23,25 @@ const EmployeePage = () => {
   const [selectedStatus, setSelectedStatus] = useState(null);
   const [copiedId, setCopiedId] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [permissions, setPermissions] = useState({});
   const tableRef = useRef(null);
   const navigate = useNavigate();
   const { isSidebarOpen } = useSidebar();
+
+  // Read permissions from localStorage
+  useEffect(() => {
+    const permissionsEnc = localStorage.getItem("permissionsEnc");
+    if (permissionsEnc) {
+      try {
+        const decoded = JSON.parse(decodeURIComponent(escape(atob(permissionsEnc))));
+        setPermissions(decoded);
+      } catch (e) {
+        setPermissions({});
+      }
+    } else {
+      setPermissions({});
+    }
+  }, []);
 
   const employeeStatuses = [
     { value: 'ACTIVE (DF)', label: 'Active', color: '#10B981' },
@@ -297,19 +313,21 @@ const EmployeePage = () => {
             <FilterListIcon />
           </IconButton>
         </Box>
-        <Button 
-          variant="contained" 
-          color="primary" 
-          onClick={handleCreateEmployee}
-          sx={{
-            height: '32px',
-            textTransform: 'none',
-            px: 2,
-            whiteSpace: 'nowrap'
-          }}
-        >
-          Create Employee
-        </Button>
+                {permissions.employee_create && (
+          <Button
+            variant="contained"
+            color="primary"
+            onClick={handleCreateEmployee}
+            sx={{
+              height: '32px',
+              textTransform: 'none',
+              px: 2,
+              whiteSpace: 'nowrap'
+            }}
+          >
+            Create Employee
+          </Button>
+        )}
       </Box>
 
       {/* Status Filter Buttons */}

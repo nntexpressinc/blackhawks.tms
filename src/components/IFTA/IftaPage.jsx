@@ -23,6 +23,7 @@ const IftaPage = () => {
   const [showFuelTaxRatesModal, setShowFuelTaxRatesModal] = useState(false);
   const [selectedRecord, setSelectedRecord] = useState(null);
   const [activeTab, setActiveTab] = useState('ifta');
+  const [permissions, setPermissions] = useState({});
   
   // Hierarchical expansion states for IFTA records
   const [expandedYears, setExpandedYears] = useState({});
@@ -33,6 +34,21 @@ const IftaPage = () => {
   const location = useLocation();
   const queryParams = new URLSearchParams(location.search);
   const driverId = queryParams.get('driverId');
+
+  // Read permissions from localStorage
+  useEffect(() => {
+    const permissionsEnc = localStorage.getItem("permissionsEnc");
+    if (permissionsEnc) {
+      try {
+        const decoded = JSON.parse(decodeURIComponent(escape(atob(permissionsEnc))));
+        setPermissions(decoded);
+      } catch (e) {
+        setPermissions({});
+      }
+    } else {
+      setPermissions({});
+    }
+  }, []);
 
   const US_STATES = [
     { code: 'AL', name: 'Alabama' },
@@ -301,7 +317,7 @@ const IftaPage = () => {
   };
 
   const handleDeleteFuelTaxRate = async (id) => {
-    if (window.confirm('Are you sure you want to delete this fuel tax rate?')) {
+    if (permissions.ifta_delete && window.confirm('Are you sure you want to delete this fuel tax rate?')) {
       try {
         await deleteFuelTaxRate(id);
         setSuccessMessage('Fuel tax rate deleted successfully!');
@@ -337,12 +353,14 @@ const IftaPage = () => {
   };
 
   const handleEdit = (record) => {
-    setSelectedRecord(record);
-    setShowEditModal(true);
+    if (permissions.ifta_update) {
+      setSelectedRecord(record);
+      setShowEditModal(true);
+    }
   };
 
   const handleDelete = async (id) => {
-    if (window.confirm('Are you sure you want to delete this IFTA record?')) {
+    if (permissions.ifta_delete && window.confirm('Are you sure you want to delete this IFTA record?')) {
       try {
         await deleteIftaRecord(id);
         setSuccessMessage('IFTA record deleted successfully!');
@@ -387,7 +405,7 @@ const IftaPage = () => {
             {driverId ? "Driver IFTA Records" : "IFTA Management"}
           </h1>
           <div style={{ display: 'flex', gap: '10px' }}>
-            {activeTab === 'ifta' && (
+            {activeTab === 'ifta' && permissions.ifta_create && (
               <button 
                 className="btn-primary"
                 onClick={() => setShowCreateModal(true)}
@@ -395,7 +413,7 @@ const IftaPage = () => {
                 Create IFTA Records
               </button>
             )}
-            {activeTab === 'fuel-tax-rates' && (
+            {activeTab === 'fuel-tax-rates' && permissions.ifta_create && (
               <button 
                 className="btn-primary"
                 onClick={() => setShowFuelTaxRatesModal(true)}
@@ -403,7 +421,7 @@ const IftaPage = () => {
                 Create Fuel Tax Rates
               </button>
             )}
-            {activeTab === 'ifta-reports' && (
+            {activeTab === 'ifta-reports' && permissions.ifta_create && (
               <button
                 className="btn-primary"
                 onClick={() => setShowCreateIftaReportModal(true)}
@@ -732,20 +750,24 @@ const IftaPage = () => {
                                                                     </td>
                                                                     <td style={{ padding: '6px', border: '1px solid #ddd' }}>
                                                                       <div style={{ display: 'flex', gap: '4px' }}>
-                                                                        <button 
-                                                                          className="btn-secondary"
-                                                                          style={{ fontSize: '10px', padding: '2px 6px' }}
-                                                                          onClick={() => handleEdit(record)}
-                                                                        >
-                                                                          Edit
-                                                                        </button>
-                                                                        <button 
-                                                                          className="btn-danger"
-                                                                          style={{ fontSize: '10px', padding: '2px 6px' }}
-                                                                          onClick={() => handleDelete(record.id)}
-                                                                        >
-                                                                          Delete
-                                                                        </button>
+                                                                        {permissions.ifta_update && (
+                                                                          <button 
+                                                                            className="btn-secondary"
+                                                                            style={{ fontSize: '10px', padding: '2px 6px' }}
+                                                                            onClick={() => handleEdit(record)}
+                                                                          >
+                                                                            Edit
+                                                                          </button>
+                                                                        )}
+                                                                        {permissions.ifta_delete && (
+                                                                          <button 
+                                                                            className="btn-danger"
+                                                                            style={{ fontSize: '10px', padding: '2px 6px' }}
+                                                                            onClick={() => handleDelete(record.id)}
+                                                                          >
+                                                                            Delete
+                                                                          </button>
+                                                                        )}
                                                                       </div>
                                                                     </td>
                                                                   </tr>
@@ -824,20 +846,24 @@ const IftaPage = () => {
                             <td>{rate.mpg}</td>
                             <td>
                               <div className="ifta-actions">
-                                <button 
-                                  className="btn-secondary"
-                                  onClick={() => {
-                                    console.log('Edit fuel tax rate:', rate.id);
-                                  }}
-                                >
-                                  Edit
-                                </button>
-                                <button 
-                                  className="btn-danger"
-                                  onClick={() => handleDeleteFuelTaxRate(rate.id)}
-                                >
-                                  Delete
-                                </button>
+                                {permissions.ifta_update && (
+                                  <button 
+                                    className="btn-secondary"
+                                    onClick={() => {
+                                      console.log('Edit fuel tax rate:', rate.id);
+                                    }}
+                                  >
+                                    Edit
+                                  </button>
+                                )}
+                                {permissions.ifta_delete && (
+                                  <button 
+                                    className="btn-danger"
+                                    onClick={() => handleDeleteFuelTaxRate(rate.id)}
+                                  >
+                                    Delete
+                                  </button>
+                                )}
                               </div>
                             </td>
                           </tr>
@@ -853,7 +879,7 @@ const IftaPage = () => {
           <IftaReportsPage showCreateModal={showCreateIftaReportModal} setShowCreateModal={setShowCreateIftaReportModal} />
         )}
 
-        {showCreateModal && (
+        {showCreateModal && permissions.ifta_create && (
           <CreateIftaModal
             drivers={drivers}
             quarters={QUARTERS}
@@ -863,7 +889,7 @@ const IftaPage = () => {
           />
         )}
 
-        {showEditModal && selectedRecord && (
+        {showEditModal && selectedRecord && permissions.ifta_update && (
           <EditIftaModal
             record={selectedRecord}
             drivers={drivers}
@@ -877,7 +903,7 @@ const IftaPage = () => {
           />
         )}
 
-        {showFuelTaxRatesModal && (
+        {showFuelTaxRatesModal && permissions.ifta_create && (
           <CreateFuelTaxRatesModal
             quarters={QUARTERS}
             states={US_STATES}

@@ -1186,12 +1186,28 @@ const LoadViewPage = () => {
   const [otherPays, setOtherPays] = useState([]);
   const chatContainerRef = useRef(null);
   const [shouldScrollToBottom, setShouldScrollToBottom] = useState(true);
+  const [permissions, setPermissions] = useState({});
   // First, add state for delete confirmation dialog
   const [deleteStopDialog, setDeleteStopDialog] = useState({
     open: false,
     stopId: null,
     stopName: ''
   });
+  
+  // Read permissions from localStorage
+  useEffect(() => {
+    const permissionsEnc = localStorage.getItem("permissionsEnc");
+    if (permissionsEnc) {
+      try {
+        const decoded = JSON.parse(decodeURIComponent(escape(atob(permissionsEnc))));
+        setPermissions(decoded);
+      } catch (e) {
+        setPermissions({});
+      }
+    } else {
+      setPermissions({});
+    }
+  }, []);
   
   useEffect(() => {
     const fetchLoadData = async () => {
@@ -1306,6 +1322,11 @@ const LoadViewPage = () => {
   }, [chatMessages]);
 
   const handleSendMessage = async (messageText = newMessage, file = selectedFile) => {
+    if (!permissions.chat_create) {
+      showSnackbar('You do not have permission to send messages', 'error');
+      return;
+    }
+    
     if ((!messageText.trim() && !file) && !editingMessage) return;
     
     try {
@@ -1318,6 +1339,11 @@ const LoadViewPage = () => {
       }
       
       if (editingMessage) {
+        if (!permissions.chat_update) {
+          showSnackbar('You do not have permission to edit messages', 'error');
+          return;
+        }
+        
         // Create message data for update
         const updateData = {
           message: messageText,
@@ -1384,6 +1410,10 @@ const LoadViewPage = () => {
 
   // Function to start editing a message
   const handleEditMessage = (message) => {
+    if (!permissions.chat_update) {
+      showSnackbar('You do not have permission to edit messages', 'error');
+      return;
+    }
     setEditingMessage(message);
     setNewMessage(message.message || "");
   };
@@ -1642,7 +1672,7 @@ const LoadViewPage = () => {
                   
                   <Box sx={{ display: 'flex', flexDirection: 'column', width: '100%', position: 'relative' }}>
                     {/* Edit button for current user's messages */}
-                    {isCurrentUserMessage && message.message && (
+                    {isCurrentUserMessage && message.message && permissions.chat_update && (
                       <EditIconButton 
                         size="small"
                         onClick={() => handleEditMessage(message)}
@@ -1941,6 +1971,10 @@ const LoadViewPage = () => {
 
   // Completely replace the handleEditStop function
   const handleEditStop = (stop) => {
+    if (!permissions.stop_update) {
+      showSnackbar('You do not have permission to edit stops', 'error');
+      return;
+    }
     setEditingStop(stop.id);
     
     // Format date fields for HTML datetime-local input (requires YYYY-MM-DDThh:mm format)
@@ -2061,6 +2095,10 @@ const LoadViewPage = () => {
 
   // Function to add new stop
   const handleAddStop = () => {
+    if (!permissions.stop_create) {
+      showSnackbar('You do not have permission to add stops', 'error');
+      return;
+    }
     setIsAddingStop(true);
     
     // Determine the existing stops and next stop number
@@ -2112,6 +2150,11 @@ const LoadViewPage = () => {
 
   // Function to save stop
   const handleSaveStop = async () => {
+    if (!permissions.stop_create && !permissions.stop_update) {
+      showSnackbar('You do not have permission to save stops', 'error');
+      return;
+    }
+    
     try {
       // Create a copy of the form data
       let formattedData = {
@@ -2268,6 +2311,11 @@ const LoadViewPage = () => {
   
   // Handle file upload
   const handleFileUpload = async (event, fileType) => {
+    if (!permissions.load_update) {
+      showSnackbar('You do not have permission to upload files', 'error');
+      return;
+    }
+    
     const file = event.target.files[0];
     if (!file) return;
     
@@ -2358,6 +2406,10 @@ const LoadViewPage = () => {
   
   // Handle edit section
   const handleEditSection = (section) => {
+    if (!permissions.load_update) {
+      showSnackbar('You do not have permission to edit loads', 'error');
+      return;
+    }
     setEditingSection(section);
     
     // Initialize form data based on section
@@ -2464,6 +2516,11 @@ const LoadViewPage = () => {
   
   // Handle saving changes - updated to include unit_id
   const handleSaveChanges = async () => {
+    if (!permissions.load_update) {
+      showSnackbar('You do not have permission to update loads', 'error');
+      return;
+    }
+    
     setIsSaving(true);
     try {
       // Prepare data based on section
@@ -2766,6 +2823,11 @@ const LoadViewPage = () => {
 
   // Add function to handle adding other pay
   const handleAddOtherPay = async () => {
+    if (!permissions.otherpay_create) {
+      showSnackbar('You do not have permission to add other pays', 'error');
+      return;
+    }
+    
     if (!editFormData.other_pay_amount && !editFormData.other_pay_type) {
       showSnackbar('Please enter amount and pay type', 'error');
       return;
@@ -2801,6 +2863,11 @@ const LoadViewPage = () => {
 
   // Add function to delete other pay
   const handleDeleteOtherPay = async (payId) => {
+    if (!permissions.otherpay_delete) {
+      showSnackbar('You do not have permission to delete other pays', 'error');
+      return;
+    }
+    
     try {
       await ApiService.deleteData(`/otherpay/${payId}/`);
       
@@ -2855,6 +2922,11 @@ const LoadViewPage = () => {
 
   // Fix the handleDeleteStop function to properly reset editing state
   const handleDeleteStop = async (stopId) => {
+    if (!permissions.stop_delete) {
+      showSnackbar('You do not have permission to delete stops', 'error');
+      return;
+    }
+    
     try {
       // Avval stopni o'chiramiz
       await ApiService.deleteData(`/stops/${stopId}/`);
@@ -3108,14 +3180,16 @@ const LoadViewPage = () => {
                       <MdCheckCircle size={18} />
                     }
                   </IconButton> */}
-                  <Button 
-                    startIcon={<AddIcon />} 
-                    size="small" 
-                    onClick={handleAddStop}
-                    disabled={isAddingStop || editingStop !== null}
-                  >
-                    Add Stop
-                  </Button>
+                  {permissions.stop_create && (
+                    <Button 
+                      startIcon={<AddIcon />} 
+                      size="small" 
+                      onClick={handleAddStop}
+                      disabled={isAddingStop || editingStop !== null}
+                    >
+                      Add Stop
+                    </Button>
+                  )}
                 </Box>
               </StopsHeader>
               
@@ -4358,7 +4432,7 @@ const LoadViewPage = () => {
               <IconButton
                 color="primary"
                 onClick={() => handleSendMessage()}
-                disabled={!newMessage.trim() && !selectedFile && !editingMessage}
+                disabled={(!newMessage.trim() && !selectedFile && !editingMessage) || !permissions.chat_create}
               >
                 <Send />
               </IconButton>
@@ -4408,14 +4482,16 @@ const LoadViewPage = () => {
                     <Info />
                     Basic Information
                   </InfoCardTitle>
-                  <Button
-                    variant="outlined"
-                    size="small"
-                    startIcon={editingSection === 'basic' ? <Close /> : <EditIcon />}
-                    onClick={editingSection === 'basic' ? handleCancelEdit : () => handleEditSection('basic')}
-                  >
-                    {editingSection === 'basic' ? 'CANCEL' : 'EDIT'}
-                  </Button>
+                  {permissions.load_update && (
+                    <Button
+                      variant="outlined"
+                      size="small"
+                      startIcon={editingSection === 'basic' ? <Close /> : <EditIcon />}
+                      onClick={editingSection === 'basic' ? handleCancelEdit : () => handleEditSection('basic')}
+                    >
+                      {editingSection === 'basic' ? 'CANCEL' : 'EDIT'}
+                    </Button>
+                  )}
                 </InfoCardHeader>
                 
                 {editingSection === 'basic' ? (
@@ -4484,16 +4560,18 @@ const LoadViewPage = () => {
                         <MenuItem value="TANKERSTYLE">TankerStyle</MenuItem>
                       </Select>
                     </FormControl>
-                    <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 2 }}>
-                      <Button 
-                        variant="contained" 
-                        onClick={handleSaveChanges}
-                        disabled={isSaving}
-                        startIcon={isSaving ? <CircularProgress size={20} /> : <Save />}
-                      >
-                        Save
-                      </Button>
-                    </Box>
+                    {permissions.load_update && (
+                      <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 2 }}>
+                        <Button 
+                          variant="contained" 
+                          onClick={handleSaveChanges}
+                          disabled={isSaving}
+                          startIcon={isSaving ? <CircularProgress size={20} /> : <Save />}
+                        >
+                          Save
+                        </Button>
+                      </Box>
+                    )}
                   </Box>
                 ) : (
                   // Display mode for basic information
@@ -4561,14 +4639,16 @@ const LoadViewPage = () => {
                     <PersonOutline />
                     Personnel
                   </InfoCardTitle>
-                  <Button
-                    variant="outlined"
-                    size="small"
-                    startIcon={editingSection === 'personnel' ? <Close /> : <EditIcon />}
-                    onClick={editingSection === 'personnel' ? handleCancelEdit : () => handleEditSection('personnel')}
-                  >
-                    {editingSection === 'personnel' ? 'CANCEL' : 'EDIT'}
-                  </Button>
+                  {permissions.load_update && (
+                    <Button
+                      variant="outlined"
+                      size="small"
+                      startIcon={editingSection === 'personnel' ? <Close /> : <EditIcon />}
+                      onClick={editingSection === 'personnel' ? handleCancelEdit : () => handleEditSection('personnel')}
+                    >
+                      {editingSection === 'personnel' ? 'CANCEL' : 'EDIT'}
+                    </Button>
+                  )}
                 </InfoCardHeader>
                 
                 {editingSection === 'personnel' ? (
@@ -4682,14 +4762,16 @@ const LoadViewPage = () => {
                     <DriveEta />
                     Equipment
                   </InfoCardTitle>
-                  <Button
-                    variant="outlined"
-                    size="small"
-                    startIcon={editingSection === 'equipment' ? <Close /> : <EditIcon />}
-                    onClick={editingSection === 'equipment' ? handleCancelEdit : () => handleEditSection('equipment')}
-                  >
-                    {editingSection === 'equipment' ? 'CANCEL' : 'EDIT'}
-                  </Button>
+                  {permissions.load_update && (
+                    <Button
+                      variant="outlined"
+                      size="small"
+                      startIcon={editingSection === 'equipment' ? <Close /> : <EditIcon />}
+                      onClick={editingSection === 'equipment' ? handleCancelEdit : () => handleEditSection('equipment')}
+                    >
+                      {editingSection === 'equipment' ? 'CANCEL' : 'EDIT'}
+                    </Button>
+                  )}
                 </InfoCardHeader>
                 
                 {editingSection === 'equipment' ? (
@@ -4997,15 +5079,17 @@ const LoadViewPage = () => {
                     <DirectionsIcon />
                     Mile Information
                   </InfoCardTitle>
-                  <Button
-                    variant="outlined"
-                    size="small"
-                    startIcon={editingSection === 'mile' ? <Close /> : <EditIcon />}
-                    onClick={editingSection === 'mile' ? handleCancelEdit : () => handleEditSection('mile')}
-                  >
-                    
-                    {editingSection === 'mile' ? 'CANCEL' : 'EDIT'}
-                  </Button>
+                  {permissions.load_update && (
+                    <Button
+                      variant="outlined"
+                      size="small"
+                      startIcon={editingSection === 'mile' ? <Close /> : <EditIcon />}
+                      onClick={editingSection === 'mile' ? handleCancelEdit : () => handleEditSection('mile')}
+                    >
+                      
+                      {editingSection === 'mile' ? 'CANCEL' : 'EDIT'}
+                    </Button>
+                  )}
                 </InfoCardHeader>
                 
                 {editingSection === 'mile' ? (
@@ -5189,14 +5273,16 @@ const LoadViewPage = () => {
                     <AttachMoneyIcon />
                     Payment Details
                   </InfoCardTitle>
-                  <Button
-                    variant="outlined"
-                    size="small"
-                    startIcon={editingSection === 'payment' ? <Close /> : <EditIcon />}
-                    onClick={editingSection === 'payment' ? handleCancelEdit : () => handleEditSection('payment')}
-                  >
-                    {editingSection === 'payment' ? 'CANCEL' : 'EDIT'}
-                  </Button>
+                  {permissions.load_update && (
+                    <Button
+                      variant="outlined"
+                      size="small"
+                      startIcon={editingSection === 'payment' ? <Close /> : <EditIcon />}
+                      onClick={editingSection === 'payment' ? handleCancelEdit : () => handleEditSection('payment')}
+                    >
+                      {editingSection === 'payment' ? 'CANCEL' : 'EDIT'}
+                    </Button>
+                  )}
                 </InfoCardHeader>
                 
                 {editingSection === 'payment' ? (
@@ -5334,9 +5420,11 @@ const LoadViewPage = () => {
                                   {pay.note || 'No note'}
                                 </Typography>
                               </Box>
-                              <IconButton size="small" color="error" onClick={() => handleDeleteOtherPay(pay.id)}>
-                                <Delete fontSize="small" />
-                              </IconButton>
+                              {permissions.otherpay_delete && (
+                                <IconButton size="small" color="error" onClick={() => handleDeleteOtherPay(pay.id)}>
+                                  <Delete fontSize="small" />
+                                </IconButton>
+                              )}
                             </Box>
                           ))}
                         </Box>
@@ -5394,6 +5482,7 @@ const LoadViewPage = () => {
                     Documents
                   </InfoCardTitle>
                   <Box sx={{ display: 'flex', gap: 1 }}>
+                                      {permissions.load_update && (
                     <Button
                       variant="outlined"
                       size="small"
@@ -5402,6 +5491,7 @@ const LoadViewPage = () => {
                     >
                       {editingSection === 'documents' ? 'CANCEL' : 'EDIT'}
                     </Button>
+                  )}
                     <Button
                       startIcon={<FileUpload />}
                       size="small"
@@ -5741,6 +5831,7 @@ const LoadViewPage = () => {
                       <Description />
                       Notes
                     </InfoCardTitle>
+                                      {permissions.load_update && (
                     <Button
                       variant="outlined"
                       size="small"
@@ -5749,6 +5840,7 @@ const LoadViewPage = () => {
                     >
                       {editingSection === 'notes' ? 'CANCEL' : 'EDIT'}
                     </Button>
+                  )}
                   </InfoCardHeader>
                   
                   {editingSection === 'notes' ? (

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { createFuelTaxRatesBulk } from '../../api/ifta';
 
@@ -6,10 +6,26 @@ const CreateFuelTaxRatesModal = ({ quarters, states, onClose, onSuccess }) => {
   const { t } = useTranslation();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [permissions, setPermissions] = useState({});
   const [formData, setFormData] = useState({
     quarter: '',
     rates: {}
   });
+
+  // Read permissions from localStorage
+  useEffect(() => {
+    const permissionsEnc = localStorage.getItem("permissionsEnc");
+    if (permissionsEnc) {
+      try {
+        const decoded = JSON.parse(decodeURIComponent(escape(atob(permissionsEnc))));
+        setPermissions(decoded);
+      } catch (e) {
+        setPermissions({});
+      }
+    } else {
+      setPermissions({});
+    }
+  }, []);
 
   const handleQuarterChange = (e) => {
     setFormData(prev => ({
@@ -62,16 +78,21 @@ const CreateFuelTaxRatesModal = ({ quarters, states, onClose, onSuccess }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
+    if (!permissions.ifta_create) {
+      setError('You do not have permission to create fuel tax rates');
+      return;
+    }
+    
     if (!validateForm()) return;
 
     try {
       setLoading(true);
       setError('');
 
-      // Backend uchun to'g'ri formatda ma'lumotlarni tayyorlash
+      // Prepare data in correct format for backend
       const submitData = {
         quarter: formData.quarter,
-        rates: [formData.rates] // Array ichida object
+        rates: [formData.rates] // Array with object inside
       };
 
       console.log('Submitting fuel tax rates:', submitData);

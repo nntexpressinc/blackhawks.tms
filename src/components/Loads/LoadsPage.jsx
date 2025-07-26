@@ -560,10 +560,26 @@ const LoadsPage = () => {
   const [selectedRow, setSelectedRow] = useState(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [permissions, setPermissions] = useState({});
   const tableRef = useRef(null);
   const navigate = useNavigate();
   const { isSidebarOpen } = useSidebar();
   const [copiedId, setCopiedId] = useState(null);
+
+  // Read permissions from localStorage
+  useEffect(() => {
+    const permissionsEnc = localStorage.getItem("permissionsEnc");
+    if (permissionsEnc) {
+      try {
+        const decoded = JSON.parse(decodeURIComponent(escape(atob(permissionsEnc))));
+        setPermissions(decoded);
+      } catch (e) {
+        setPermissions({});
+      }
+    } else {
+      setPermissions({});
+    }
+  }, []);
 
   const loadStatuses = [
     { value: 'open', label: 'Open', icon: <MdLocalShipping />, color: '#3B82F6' },
@@ -1193,9 +1209,11 @@ const LoadsPage = () => {
             <FilterListIcon />
           </IconButton>
       </Box>
-          <Button variant="contained" color="primary" onClick={handleCreateLoad}>
-            Create Load
-          </Button>
+          {permissions.load_create && (
+            <Button variant="contained" color="primary" onClick={handleCreateLoad}>
+              Create Load
+            </Button>
+          )}
       </Box>
 
       <CreateLoadModal

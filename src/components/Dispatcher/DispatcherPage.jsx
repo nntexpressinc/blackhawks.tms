@@ -27,9 +27,25 @@ const DispatcherPage = () => {
   const [filterAnchorEl, setFilterAnchorEl] = useState(null);
   const [copiedId, setCopiedId] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [permissions, setPermissions] = useState({});
   const tableRef = useRef(null);
   const navigate = useNavigate();
   const { isSidebarOpen } = useSidebar();
+
+  // Read permissions from localStorage
+  useEffect(() => {
+    const permissionsEnc = localStorage.getItem("permissionsEnc");
+    if (permissionsEnc) {
+      try {
+        const decoded = JSON.parse(decodeURIComponent(escape(atob(permissionsEnc))));
+        setPermissions(decoded);
+      } catch (e) {
+        setPermissions({});
+      }
+    } else {
+      setPermissions({});
+    }
+  }, []);
 
   const dispatcherStatuses = [
     { value: 'ACTIVE (DF)', label: 'Active', icon: <MdCheckCircle />, color: '#10B981' },
@@ -354,19 +370,21 @@ const DispatcherPage = () => {
             <FilterListIcon />
           </IconButton>
         </Box>
-        <Button 
-          variant="contained" 
-          color="primary" 
-          onClick={handleCreateDispatcher}
-          sx={{
-            height: '32px',
-            textTransform: 'none',
-            px: 2,
-            whiteSpace: 'nowrap'
-          }}
-        >
-          Create&nbsp;Dispatcher
-        </Button>
+                {permissions.dispatcher_create && (
+          <Button
+            variant="contained"
+            color="primary"
+            onClick={handleCreateDispatcher}
+            sx={{
+              height: '32px',
+              textTransform: 'none',
+              px: 2,
+              whiteSpace: 'nowrap'
+            }}
+          >
+            Create&nbsp;Dispatcher
+          </Button>
+        )}
       </Box>
 
       {/* Status Filter Buttons */}

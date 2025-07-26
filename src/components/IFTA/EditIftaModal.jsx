@@ -6,6 +6,7 @@ const EditIftaModal = ({ record, drivers, quarters, states, onClose, onSuccess }
   const { t } = useTranslation();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [permissions, setPermissions] = useState({});
   const [formData, setFormData] = useState({
     quarter: '',
     state: '',
@@ -15,6 +16,21 @@ const EditIftaModal = ({ record, drivers, quarters, states, onClose, onSuccess }
     weekly_number: '',
     driver: ''
   });
+
+  // Read permissions from localStorage
+  useEffect(() => {
+    const permissionsEnc = localStorage.getItem("permissionsEnc");
+    if (permissionsEnc) {
+      try {
+        const decoded = JSON.parse(decodeURIComponent(escape(atob(permissionsEnc))));
+        setPermissions(decoded);
+      } catch (e) {
+        setPermissions({});
+      }
+    } else {
+      setPermissions({});
+    }
+  }, []);
 
   useEffect(() => {
     if (record) {
@@ -62,6 +78,11 @@ const EditIftaModal = ({ record, drivers, quarters, states, onClose, onSuccess }
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    if (!permissions.ifta_update) {
+      setError('You do not have permission to update IFTA records');
+      return;
+    }
     
     if (!validateForm()) return;
 

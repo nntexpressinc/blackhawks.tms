@@ -4,6 +4,9 @@ import { FaTimes } from 'react-icons/fa';
 import './CreateRoleModal.scss';
 
 const permissionGroups = {
+  main: [
+    'dashboard', 'loads', 'vehicles', 'customer_broker', 'driver', 'employee', 'dispatcher', 'users_actives', 'accounting', 'ifta', 'manage_users', 'manage_units', 'manage_teams', 'manage'
+  ],
   load: ['load_create', 'load_view', 'load_update', 'load_delete'],
   driver: ['driver_create', 'driver_view', 'driver_update', 'driver_delete'],
   truck: ['truck_create', 'truck_view', 'truck_update', 'truck_delete'],
@@ -17,7 +20,8 @@ const permissionGroups = {
   commodity: ['commodity_create', 'commodity_view', 'commodity_update', 'commodity_delete'],
   customerbroker: ['customerbroker_create', 'customerbroker_view', 'customerbroker_update', 'customerbroker_delete'],
   chat: ['chat_create', 'chat_view', 'chat_update', 'chat_delete'],
-  userlocation: ['userlocation_create', 'userlocation_view', 'userlocation_update', 'userlocation_delete']
+  userlocation: ['userlocation_create', 'userlocation_view', 'userlocation_update', 'userlocation_delete'],
+  ifta: ['ifta_create', 'ifta_view', 'ifta_update', 'ifta_delete']
 };
 
 const CreateRoleModal = ({ isOpen, onClose, onCreateRole, editingRole }) => {
@@ -155,7 +159,11 @@ const CreateRoleModal = ({ isOpen, onClose, onCreateRole, editingRole }) => {
               {Object.entries(permissionGroups).map(([group, permissions]) => (
                 <div key={group} className="permission-group">
                   <div className="group-header">
-                    <h4>{t(group.charAt(0).toUpperCase() + group.slice(1))}</h4>
+                    {group === 'main' ? (
+                      <h4>{t('Sidebar')}</h4>
+                    ) : (
+                      <h4>{t(group.charAt(0).toUpperCase() + group.slice(1))}</h4>
+                    )}
                     <button
                       type="button"
                       onClick={() => handleGroupToggle(group)}

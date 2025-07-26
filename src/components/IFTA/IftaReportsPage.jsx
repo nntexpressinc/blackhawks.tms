@@ -21,7 +21,7 @@ const DeleteIcon = () => (
     <path d="M8 9V13" stroke="#dc3545" strokeWidth="1.7" strokeLinecap="round"/>
     <path d="M12 9V13" stroke="#dc3545" strokeWidth="1.7" strokeLinecap="round"/>
     <path d="M3 7H17" stroke="#dc3545" strokeWidth="1.7" strokeLinecap="round"/>
-    <path d="M8 4H12" stroke="#dc3545" strokeWidth="1.7" strokeLinecap="round"/>
+    <path d="M8 4H12" stroke="#dc3545" strokeWidth="1.7" strokeLinejoin="round"/>
   </svg>
 );
 
@@ -39,9 +39,25 @@ const IftaReportsPage = ({ showCreateModal, setShowCreateModal }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [permissions, setPermissions] = useState({});
 
   useEffect(() => {
     fetchReports();
+  }, []);
+
+  // Read permissions from localStorage
+  useEffect(() => {
+    const permissionsEnc = localStorage.getItem("permissionsEnc");
+    if (permissionsEnc) {
+      try {
+        const decoded = JSON.parse(decodeURIComponent(escape(atob(permissionsEnc))));
+        setPermissions(decoded);
+      } catch (e) {
+        setPermissions({});
+      }
+    } else {
+      setPermissions({});
+    }
   }, []);
 
   const fetchReports = async () => {
@@ -58,7 +74,7 @@ const IftaReportsPage = ({ showCreateModal, setShowCreateModal }) => {
   };
 
   const handleDelete = async (id) => {
-    if (window.confirm('Are you sure you want to delete this report?')) {
+    if (permissions.ifta_delete && window.confirm('Are you sure you want to delete this report?')) {
       try {
         await deleteIftaReport(id);
         setSuccess('Report deleted successfully!');
@@ -129,23 +145,27 @@ const IftaReportsPage = ({ showCreateModal, setShowCreateModal }) => {
                   <td style={{ textAlign: 'center', fontSize: 13 }}>{new Date(report.created_at).toLocaleString()}</td>
                   <td style={{ textAlign: 'center', padding: '4px 0' }}>
                     <div style={{ display: 'flex', gap: 4, justifyContent: 'center' }}>
-                      <button
-                        className="btn-secondary"
-                        style={{ padding: '4px 7px', minWidth: 0, background: '#f1f3f4', border: 'none', borderRadius: '4px', display: 'flex', alignItems: 'center' }}
-                        title="Download"
-                        onClick={() => handleDownload(report.id, getFileNameFromUrl(report.result_file_url))}
-                        disabled={!report.result_file_url}
-                      >
-                        <DownloadIcon />
-                      </button>
-                      <button
-                        className="btn-danger"
-                        style={{ padding: '4px 7px', minWidth: 0, background: '#fff0f1', border: 'none', borderRadius: '4px', display: 'flex', alignItems: 'center' }}
-                        title="Delete"
-                        onClick={() => handleDelete(report.id)}
-                      >
-                        <DeleteIcon />
-                      </button>
+                      {permissions.ifta_view && (
+                        <button
+                          className="btn-secondary"
+                          style={{ padding: '4px 7px', minWidth: 0, background: '#f1f3f4', border: 'none', borderRadius: '4px', display: 'flex', alignItems: 'center' }}
+                          title="Download"
+                          onClick={() => handleDownload(report.id, getFileNameFromUrl(report.result_file_url))}
+                          disabled={!report.result_file_url}
+                        >
+                          <DownloadIcon />
+                        </button>
+                      )}
+                      {permissions.ifta_delete && (
+                        <button
+                          className="btn-danger"
+                          style={{ padding: '4px 7px', minWidth: 0, background: '#fff0f1', border: 'none', borderRadius: '4px', display: 'flex', alignItems: 'center' }}
+                          title="Delete"
+                          onClick={() => handleDelete(report.id)}
+                        >
+                          <DeleteIcon />
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -154,7 +174,7 @@ const IftaReportsPage = ({ showCreateModal, setShowCreateModal }) => {
           </table>
         </div>
       )}
-      {showCreateModal && (
+      {showCreateModal && permissions.ifta_create && (
         <CreateIftaReportModal
           quarters={QUARTERS}
           onClose={() => setShowCreateModal(false)}

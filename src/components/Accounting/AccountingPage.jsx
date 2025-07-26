@@ -21,6 +21,7 @@ const ensureArray = (data) => {
 const AccountingPage = () => {
   const { t } = useTranslation();
   const [loading, setLoading] = useState(false);
+  const [permissions, setPermissions] = useState({});
   
   const [reportData, setReportData] = useState(null);
   const [dateRange, setDateRange] = useState({ startDate: '', endDate: '' });
@@ -41,6 +42,21 @@ const AccountingPage = () => {
   // Modal state for view/edit
   const [showEditModal, setShowEditModal] = useState(false);
   const [editData, setEditData] = useState(null);
+
+  // Read permissions from localStorage
+  useEffect(() => {
+    const permissionsEnc = localStorage.getItem("permissionsEnc");
+    if (permissionsEnc) {
+      try {
+        const decoded = JSON.parse(decodeURIComponent(escape(atob(permissionsEnc))));
+        setPermissions(decoded);
+      } catch (e) {
+        setPermissions({});
+      }
+    } else {
+      setPermissions({});
+    }
+  }, []);
 
   useEffect(() => {
     let isMounted = true;
@@ -359,12 +375,14 @@ const AccountingPage = () => {
         <div className="list-section">
           <div className="section-header-flex">
             <h2 className="section-title">Driver Pay Reports</h2>
-            <button
-              className="btn btn-gradient-primary"
-              onClick={() => setShowCreateForm(true)}
-            >
-              <span className="btn-icon">➕</span> Create New Report
-            </button>
+            {permissions.accounting_create && (
+              <button
+                className="btn btn-gradient-primary"
+                onClick={() => setShowCreateForm(true)}
+              >
+                <span className="btn-icon">➕</span> Create New Report
+              </button>
+            )}
           </div>
 
           <div className="search-section" style={{ marginBottom: 18 }}>
