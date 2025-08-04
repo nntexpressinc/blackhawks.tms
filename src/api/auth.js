@@ -293,36 +293,37 @@ const ApiService = {
     }
   },
 
-  // Login xatosi uchun qo'shimcha funksiya
-  postRegister: async (endpoint, data) => {
+  // FormData va file upload uchun maxsus metod
+  postFormData: async (endpoint, formData) => {
     try {
       const token = localStorage.getItem('accessToken');
       if (!token) {
         throw new Error('Token not found. Please login again.');
       }
       
-      // FormData tipidagi so'rovlar uchun Content-Type headerini o'rnatmaymiz
-      // Chunki browser o'zi boundary bilan to'g'ri Content-Type qo'yadi
-      const headers = {
-        'Authorization': `Bearer ${token}`
-      };
-      
-      // Agar FormData emas bo'lsa, Content-Type headerini qo'shamiz
-      if (!(data instanceof FormData)) {
-        headers['Content-Type'] = 'application/json';
-      }
-      
-      const response = await axios.post(`${BASE_URL}${endpoint}`, data, {
-        headers: headers
+      // FormData uchun Content-Type headerini o'rnatmaymiz
+      // Browser o'zi multipart/form-data va boundary belgilaydi
+      const response = await axios.post(`${BASE_URL}${endpoint}`, formData, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
       });
       
       return response.data;
     } catch (error) {
+      console.error('API Error Details:', {
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        data: error.response?.data,
+        endpoint: endpoint
+      });
+      
       if (error.response?.status === 401) {
         localStorage.removeItem('accessToken');
         window.location.href = '/login';
         throw new Error('Session expired. Please login again.');
       }
+      
       throw error.response?.data || error.message;
     }
   },
