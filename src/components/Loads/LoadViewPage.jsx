@@ -2,6 +2,8 @@ import React, { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import axios from "axios";
 import { API_BASE_URL } from "../../config";
+import CircleIcon from '@mui/icons-material/Circle';
+import { Menu, Tooltip } from '@mui/material';
 import {
   Box,
   Typography,
@@ -18,7 +20,7 @@ import {
   Snackbar,
   Avatar,
   Badge,
-  Tooltip,
+  
   Chip,
   Modal,
   Dialog,
@@ -47,6 +49,11 @@ import {
   LocalShipping,
   ArrowBack,
   Refresh as RefreshIcon,
+  RadioButtonUnchecked,
+  Assignment,
+  Done,
+  CheckCircle,
+  Cancel,
   Add as AddIcon,
   Business as BusinessIcon,
   Check,
@@ -80,6 +87,7 @@ import {
 } from "@mui/icons-material";
 import { MdFileUpload, MdFileDownload, MdLocalShipping, MdDirectionsCar, MdAssignmentTurnedIn, MdDoneAll, MdAltRoute, MdCheckCircle, MdHome } from 'react-icons/md';
 import { ApiService } from "../../api/auth";
+import chatSocketService from "../../api/chat";
 import { useSidebar } from "../SidebarContext";
 import darkLogo from '../../images/dark-logo.png';
 import { CiDeliveryTruck } from "react-icons/ci";
@@ -748,7 +756,8 @@ const CreateLoadModal = ({ open, onClose, onCreateSuccess }) => {
   const [loadData, setLoadData] = useState({
     load_id: "",
     reference_id: "",
-    customer_broker: null
+    customer_broker: null,
+    weight: ""
   });
   const [brokers, setBrokers] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -764,7 +773,7 @@ const CreateLoadModal = ({ open, onClose, onCreateSuccess }) => {
     country: "USA",
     state: "",
     city: "",
-    zip_code: "",
+    zip_code: 0,
     billing_type: "NONE"
   });
 
@@ -775,7 +784,7 @@ const CreateLoadModal = ({ open, onClose, onCreateSuccess }) => {
         setBrokers(data);
       } catch (error) {
         console.error("Error fetching brokers:", error);
-        setError("Brokerlarni yuklashda xato yuz berdi. Iltimos, qayta urinib ko'ring.");
+        setError("Failed to load brokers. Please try again.");
       }
     };
 
@@ -800,8 +809,8 @@ const CreateLoadModal = ({ open, onClose, onCreateSuccess }) => {
   };
 
   const handleCreateLoad = async () => {
-    if (!loadData.reference_id || !loadData.customer_broker || !loadData.load_id) {
-      setError("Reference ID, Load ID va Broker/Mijoz tanlanishi shart");
+    if (!loadData.customer_broker || !loadData.load_id) {
+      setError("Load ID and Customer/Broker are required");
       return;
     }
 
@@ -814,15 +823,16 @@ const CreateLoadModal = ({ open, onClose, onCreateSuccess }) => {
         load_id: loadData.load_id,
         customer_broker: loadData.customer_broker.id,
         load_status: "OPEN", 
-        company_name: loadData.customer_broker.company_name
+        company_name: loadData.customer_broker.company_name,
+        weight: loadData.weight ? loadData.weight.toString() : null
       });
       
-      console.log("Load yaratildi:", response);
+      console.log("Load created:", response);
       onCreateSuccess(response);
       onClose();
     } catch (error) {
-      console.error("Load yaratishda xato:", error);
-      setError("Load yaratib bo'lmadi. Iltimos, qayta urinib ko'ring.");
+      console.error("Error creating load:", error);
+      setError("Failed to create load. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -845,17 +855,17 @@ const CreateLoadModal = ({ open, onClose, onCreateSuccess }) => {
   };
 
   const handleSaveBroker = async () => {
-    if (!newBroker.company_name || !newBroker.mc_number) {
-      setError("Kompaniya nomi va MC raqami kiritilishi shart");
+    if (!newBroker.company_name || newBroker.company_name.trim() === '') {
+      setError("Company name is required");
       return;
     }
     
     try {
-      // Convert numeric strings to numbers, but allow null for zip_code
+      // Convert numeric strings to numbers
       const formattedData = {
         ...newBroker,
         contact_number: newBroker.contact_number ? parseInt(newBroker.contact_number) : null,
-        zip_code: newBroker.zip_code && newBroker.zip_code.trim() ? parseInt(newBroker.zip_code) : null
+        zip_code: newBroker.zip_code ? parseInt(newBroker.zip_code) : 0
       };
       
       const response = await ApiService.postData("/customer_broker/", formattedData);
@@ -875,12 +885,12 @@ const CreateLoadModal = ({ open, onClose, onCreateSuccess }) => {
         country: "USA",
         state: "",
         city: "",
-        zip_code: "",
+        zip_code: 0,
         billing_type: "NONE"
       });
     } catch (error) {
-      console.error("Broker yaratishda xato:", error);
-      setError("Broker yaratib bo'lmadi. Iltimos, qayta urinib ko'ring.");
+      console.error("Error creating broker:", error);
+      setError("Failed to create broker. Please try again.");
     }
   };
 
@@ -924,9 +934,20 @@ const CreateLoadModal = ({ open, onClose, onCreateSuccess }) => {
                 name="reference_id"
                 value={loadData.reference_id}
                 onChange={handleChange}
-                required
-                error={!loadData.reference_id}
-                helperText={!loadData.reference_id ? "Reference ID kiritilishi shart" : ""}
+              />
+            </Grid>
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label="Weight"
+                name="weight"
+                type="text"
+                inputProps={{
+                  pattern: "^-?\\d{0,8}(?:\\.\\d{0,2})?$"
+                }}
+                value={loadData.weight}
+                onChange={handleChange}
+                helperText="Format: Up to 8 digits with optional 2 decimal places"
               />
             </Grid>
             <Grid item xs={12}>
@@ -969,14 +990,14 @@ const CreateLoadModal = ({ open, onClose, onCreateSuccess }) => {
           </Grid>
         </DialogContent>
         <DialogActions sx={{ p: 2 }}>
-          <Button onClick={onClose}>Bekor qilish</Button>
+          <Button onClick={onClose}>Cancel</Button>
           <Button 
             variant="contained" 
             onClick={handleCreateLoad}
-            disabled={loading || !loadData.reference_id || !loadData.customer_broker || !loadData.load_id}
+            disabled={loading || !loadData.customer_broker || !loadData.load_id}
             startIcon={loading ? <CircularProgress size={20} /> : <AddIcon />}
           >
-            Load yaratish
+            Create Load
           </Button>
         </DialogActions>
       </Dialog>
@@ -991,7 +1012,7 @@ const CreateLoadModal = ({ open, onClose, onCreateSuccess }) => {
         <DialogTitle>
           <Box display="flex" alignItems="center" gap={1}>
             <BusinessIcon color="primary" />
-            <Typography variant="h6">Yangi Broker qo'shish</Typography>
+            <Typography variant="h6">Add New Broker</Typography>
           </Box>
         </DialogTitle>
         <DialogContent>
@@ -999,31 +1020,28 @@ const CreateLoadModal = ({ open, onClose, onCreateSuccess }) => {
             <Grid item xs={12} md={6}>
               <TextField
                 fullWidth
-                label="Kompaniya nomi"
+                label="Company Name"
                 name="company_name"
                 value={newBroker.company_name}
                 onChange={handleBrokerFormChange}
                 required
                 error={!newBroker.company_name}
-                helperText={!newBroker.company_name ? "Kompaniya nomi kiritilishi shart" : ""}
+                helperText={!newBroker.company_name ? "Company name is required" : ""}
               />
             </Grid>
             <Grid item xs={12} md={6}>
               <TextField
                 fullWidth
-                label="MC raqami"
+                label="MC Number"
                 name="mc_number"
                 value={newBroker.mc_number}
                 onChange={handleBrokerFormChange}
-                required
-                error={!newBroker.mc_number}
-                helperText={!newBroker.mc_number ? "MC raqami kiritilishi shart" : ""}
               />
             </Grid>
             <Grid item xs={12} md={6}>
               <TextField
                 fullWidth
-                label="Telefon raqami"
+                label="Contact Number"
                 name="contact_number"
                 value={newBroker.contact_number}
                 onChange={handleBrokerFormChange}
@@ -1032,7 +1050,7 @@ const CreateLoadModal = ({ open, onClose, onCreateSuccess }) => {
             <Grid item xs={12} md={6}>
               <TextField
                 fullWidth
-                label="Email manzili"
+                label="Email Address"
                 name="email_address"
                 type="email"
                 value={newBroker.email_address}
@@ -1042,7 +1060,7 @@ const CreateLoadModal = ({ open, onClose, onCreateSuccess }) => {
             <Grid item xs={12}>
               <TextField
                 fullWidth
-                label="Manzil 1"
+                label="Address Line 1"
                 name="address1"
                 value={newBroker.address1}
                 onChange={handleBrokerFormChange}
@@ -1051,7 +1069,7 @@ const CreateLoadModal = ({ open, onClose, onCreateSuccess }) => {
             <Grid item xs={12}>
               <TextField
                 fullWidth
-                label="Manzil 2"
+                label="Address Line 2"
                 name="address2"
                 value={newBroker.address2}
                 onChange={handleBrokerFormChange}
@@ -1060,7 +1078,7 @@ const CreateLoadModal = ({ open, onClose, onCreateSuccess }) => {
             <Grid item xs={12} md={6}>
               <TextField
                 fullWidth
-                label="Shahar"
+                label="City"
                 name="city"
                 value={newBroker.city}
                 onChange={handleBrokerFormChange}
@@ -1068,12 +1086,12 @@ const CreateLoadModal = ({ open, onClose, onCreateSuccess }) => {
             </Grid>
             <Grid item xs={12} md={6}>
               <FormControl fullWidth>
-                <InputLabel>Shtat</InputLabel>
+                <InputLabel>State</InputLabel>
                 <Select
                   name="state"
                   value={newBroker.state}
                   onChange={handleBrokerFormChange}
-                  label="Shtat"
+                  label="State"
                 >
                   {['AL', 'AK', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DE', 'FL', 'GA',
                     'HI', 'ID', 'IL', 'IN', 'IA', 'KS', 'KY', 'LA', 'ME', 'MD',
@@ -1088,7 +1106,7 @@ const CreateLoadModal = ({ open, onClose, onCreateSuccess }) => {
             <Grid item xs={12} md={6}>
               <TextField
                 fullWidth
-                label="ZIP kodi"
+                label="ZIP code"
                 name="zip_code"
                 value={newBroker.zip_code}
                 onChange={handleBrokerFormChange}
@@ -1096,12 +1114,12 @@ const CreateLoadModal = ({ open, onClose, onCreateSuccess }) => {
             </Grid>
             <Grid item xs={12} md={6}>
               <FormControl fullWidth>
-                <InputLabel>To'lov turi</InputLabel>
+                <InputLabel>Billing Type</InputLabel>
                 <Select
                   name="billing_type"
                   value={newBroker.billing_type}
                   onChange={handleBrokerFormChange}
-                  label="To'lov turi"
+                  label="Billing Type"
                 >
                   <MenuItem value="NONE">None</MenuItem>
                   <MenuItem value="FACTORING_COMPANY">Factoring Company</MenuItem>
@@ -1113,13 +1131,13 @@ const CreateLoadModal = ({ open, onClose, onCreateSuccess }) => {
           </Grid>
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleCloseBrokerModal}>Bekor qilish</Button>
+          <Button onClick={handleCloseBrokerModal}>Cancel</Button>
           <Button 
             variant="contained" 
             onClick={handleSaveBroker}
-            disabled={!newBroker.company_name || !newBroker.mc_number}
+            disabled={!newBroker.company_name}
           >
-            Brokerni saqlash
+            Save Broker
           </Button>
         </DialogActions>
       </Dialog>
@@ -1159,17 +1177,20 @@ const LoadViewPage = () => {
     company_name: "",
     contact_name: "",
     reference_id: "",
-    appointmentdate: "",
+    appointmentdate_date: "",
+    appointmentdate_time: "",
     time: "",
     address1: "",
     address2: "",
     country: "USA",
     state: "",
     city: "",
-    zip_code: "",
+    zip_code: 0,
     note: "",
-    fcfs: "",
-    plus_hour: ""
+    fcfs_date: "",
+    fcfs_time: "",
+    plus_hour_date: "",
+    plus_hour_time: ""
   });
   const [isAddingStop, setIsAddingStop] = useState(false);
   const [allStops, setAllStops] = useState([]);
@@ -1187,6 +1208,19 @@ const LoadViewPage = () => {
   const chatContainerRef = useRef(null);
   const [shouldScrollToBottom, setShouldScrollToBottom] = useState(true);
   const [permissions, setPermissions] = useState({});
+  const [isStopsLoading, setIsStopsLoading] = useState(false);
+  const [stopsError, setStopsError] = useState(null);
+  // Socket.IO chat state
+  const [isSocketConnected, setIsSocketConnected] = useState(false);
+  const [isSocketConnecting, setIsSocketConnecting] = useState(false);
+  const [socketConnectionError, setSocketConnectionError] = useState(null);
+  const [typingUsers, setTypingUsers] = useState([]);
+  const [loadStatusAnchor, setLoadStatusAnchor] = useState(null);
+  const [invoiceStatusAnchor, setInvoiceStatusAnchor] = useState(null);
+  
+  // Define status options with short labels
+
+
   // First, add state for delete confirmation dialog
   const [deleteStopDialog, setDeleteStopDialog] = useState({
     open: false,
@@ -1209,15 +1243,153 @@ const LoadViewPage = () => {
     }
   }, []);
   
+  // Socket.IO connection setup
+  useEffect(() => {
+    const userId = parseInt(localStorage.getItem("userid"));
+    
+    if (userId && id) {
+      const initializeSocket = async () => {
+        try {
+          setIsSocketConnecting(true);
+          await chatSocketService.connect(userId, parseInt(id));
+          setIsSocketConnected(true);
+          setIsSocketConnecting(false);
+          setSocketConnectionError(null);
+          
+          // Join the chat room
+          chatSocketService.joinRoom(userId, parseInt(id));
+          
+          // Set up event listeners
+          chatSocketService.onMessageReceived((newMessage) => {
+            try {
+              setChatMessages(prev => {
+                // Check if this is our own message (replace temp message)
+                const currentUserId = parseInt(localStorage.getItem("userid"));
+                const isOwnMessage = newMessage.user === currentUserId;
+                
+                if (isOwnMessage) {
+                  // Replace temp message with real message
+                  const updated = prev.map(msg => 
+                    msg.is_temp && msg.user === currentUserId ? { ...newMessage, is_temp: false } : msg
+                  );
+                  return updated;
+                } else {
+                  // Add new message from other user
+                  const updated = [...prev, newMessage];
+                  // Sort by timestamp
+                  return updated.sort((a, b) => {
+                    const dateA = a.created_at ? new Date(a.created_at) : new Date(0);
+                    const dateB = b.created_at ? new Date(b.created_at) : new Date(0);
+                    return dateA - dateB;
+                  });
+                }
+              });
+              
+              // Fetch user data for the new message
+              if (newMessage.user) {
+                fetchUserData(newMessage.user);
+              }
+            } catch (error) {
+              console.error('Error handling new message:', error);
+            }
+          });
+          
+          chatSocketService.onMessageUpdated((updatedMessage) => {
+            try {
+              setChatMessages(prev => 
+                prev.map(msg => msg.id === updatedMessage.id ? updatedMessage : msg)
+              );
+            } catch (error) {
+              console.error('Error handling message update:', error);
+            }
+          });
+          
+          chatSocketService.onMessageDeleted((messageId) => {
+            try {
+              setChatMessages(prev => prev.filter(msg => msg.id !== messageId));
+            } catch (error) {
+              console.error('Error handling message deletion:', error);
+            }
+          });
+          
+          chatSocketService.onUserTyping((data) => {
+            try {
+              setTypingUsers(prev => {
+                const existing = prev.find(u => u.userId === data.userId);
+                if (!existing) {
+                  return [...prev, { userId: data.userId, timestamp: Date.now() }];
+                }
+                return prev;
+              });
+            } catch (error) {
+              console.error('Error handling typing event:', error);
+            }
+          });
+          
+          chatSocketService.onUserStoppedTyping((data) => {
+            try {
+              setTypingUsers(prev => prev.filter(u => u.userId !== data.userId));
+            } catch (error) {
+              console.error('Error handling stopped typing event:', error);
+            }
+          });
+          
+        } catch (error) {
+          console.log('WebSocket not available - using REST API fallback');
+          setIsSocketConnected(false);
+          setIsSocketConnecting(false);
+          setSocketConnectionError('WebSocket not available - using REST API fallback');
+          // Don't show error to user since we have REST API fallback
+        }
+      };
+      
+      initializeSocket();
+      
+        // Cleanup on unmount
+  return () => {
+    chatSocketService.disconnect();
+    chatSocketService.removeAllListeners();
+    if (typingTimeout) {
+      clearTimeout(typingTimeout);
+    }
+  };
+    }
+  }, [id]);
+  
   useEffect(() => {
     const fetchLoadData = async () => {
       setIsLoading(true);
       setIsLoadDataLoading(true);
       try {
         const data = await ApiService.getData(`/load/${id}/`);
+        
+        // Ensure stops data is properly loaded
+        if (data && (!data.stop || data.stop.length === 0)) {
+          console.log('Load has no stops - this is normal for new loads');
+          // Don't try to fetch stops separately for new loads
+          // Only fetch stops if they were explicitly created for this load
+        }
+        
+        console.log("📥 LOAD DATA RECEIVED FROM BACKEND:");
+        console.log("  📋 Complete load data:", data);
+        if (data.stop && data.stop.length > 0) {
+          console.log("  🛑 Stops data:", data.stop);
+          data.stop.forEach((stop, index) => {
+            console.log(`    Stop ${index + 1}:`, {
+              name: stop.stop_name,
+              appointmentdate: stop.appointmentdate,
+              fcfs: stop.fcfs,
+              plus_hour: stop.plus_hour
+            });
+          });
+        } else {
+          console.log("  🛑 No stops found in load data");
+        }
+        
         setLoad(data);
         setLoadStatus(data.load_status || 'OPEN');
         setInvoiceStatus(data.invoice_status || 'NOT_DETERMINED');
+        
         // Fetch chat messages
         fetchChatMessages();
       } catch (error) {
@@ -1314,6 +1486,53 @@ const LoadViewPage = () => {
     fetchChatMessages();
   };
 
+  const handleReconnectSocket = async () => {
+    const userId = parseInt(localStorage.getItem("userid"));
+    if (userId && id) {
+      try {
+        setIsSocketConnecting(true);
+        await chatSocketService.connect(userId, parseInt(id));
+        setIsSocketConnected(true);
+        setIsSocketConnecting(false);
+        setSocketConnectionError(null);
+        showSnackbar("Real-time connection established", "success");
+      } catch (error) {
+        console.log("WebSocket not available - continuing with REST API");
+        setIsSocketConnected(false);
+        setIsSocketConnecting(false);
+        setSocketConnectionError('WebSocket not available - using REST API fallback');
+        showSnackbar("Real-time not available - using REST API", "info");
+      }
+    }
+  };
+
+  // Debounced typing handler
+  const [typingTimeout, setTypingTimeout] = useState(null);
+  
+  const handleTyping = (value) => {
+    setNewMessage(value);
+    
+    // Clear existing timeout
+    if (typingTimeout) {
+      clearTimeout(typingTimeout);
+    }
+    
+    // Emit typing event
+    const userId = parseInt(localStorage.getItem("userid"));
+    if (userId && isSocketConnected) {
+      chatSocketService.emitTyping(userId, parseInt(id));
+    }
+    
+    // Set timeout to emit stopped typing after 2 seconds
+    const timeout = setTimeout(() => {
+      if (userId && isSocketConnected) {
+        chatSocketService.emitStoppedTyping(userId, parseInt(id));
+      }
+    }, 2000);
+    
+    setTypingTimeout(timeout);
+  };
+
   // Scroll to bottom of chat when messages change
   useEffect(() => {
     if (chatEndRef.current) {
@@ -1344,54 +1563,142 @@ const LoadViewPage = () => {
           return;
         }
         
-        // Create message data for update
-        const updateData = {
-          message: messageText,
-          load_id: parseInt(id),
-          user: userId
-        };
-        
-        // Don't include file field if editing a message that has a file
-        // This avoids the "The submitted data was not a file" error
-        if (!editingMessage.file) {
-          updateData.file = null;
+        try {
+          // Always use REST API for updating messages
+          const updateData = {
+            message: messageText,
+            load_id: parseInt(id),
+            user: userId
+          };
+          
+          // If message didn't have a file before, set file to null
+          if (!editingMessage.file) {
+            updateData.file = null;
+          }
+          
+          // Update message in backend
+          await ApiService.putData(`/chat/${editingMessage.id}/`, updateData);
+          
+          // Update message in local state
+          setChatMessages(prevMessages => 
+            prevMessages.map(msg => 
+              msg.id === editingMessage.id 
+                ? { ...msg, message: messageText, updated_at: new Date().toISOString() }
+                : msg
+            )
+          );
+          
+          setEditingMessage(null);
+          setNewMessage("");
+          showSnackbar("Message updated successfully", "success");
+        } catch (error) {
+          console.error("Error updating message:", error);
+          showSnackbar(error.response?.data?.message || "Failed to update message", "error");
         }
-        
-        // Update existing message using PUT method
-        await ApiService.putData(`/chat/${editingMessage.id}/`, updateData);
-        
-        setEditingMessage(null);
-        setNewMessage("");
-        fetchChatMessages();
-        showSnackbar("Message updated", "success");
         return;
       }
       
       if (file) {
-        // If there's a file, use FormData for multipart request
-        const formData = new FormData();
-        formData.append('message', messageText || '');
-        formData.append('file', file);
-        formData.append('load_id', parseInt(id));
-        formData.append('user', userId);
-        
-        // Use postFormData method for proper FormData handling
-        await ApiService.postFormData(`/chat/`, formData);
+        // Send file message using Socket.IO or fallback to REST API
+        try {
+          // Create temporary message for immediate display (like Telegram)
+          const tempMessage = {
+            id: `temp_${Date.now()}`,
+            message: messageText || '',
+            file: file,
+            load_id: parseInt(id),
+            user: userId,
+            created_at: new Date().toISOString(),
+            is_temp: true
+          };
+          
+          // Add message immediately to chat
+          setChatMessages(prev => [...prev, tempMessage]);
+          
+          if (isSocketConnected) {
+            await chatSocketService.sendFileMessage(file, messageText, parseInt(id), userId);
+          } else {
+            // Fallback to REST API for file upload
+            const formData = new FormData();
+            formData.append('message', messageText || '');
+            formData.append('file', file);
+            formData.append('load_id', parseInt(id));
+            formData.append('user', userId);
+            const response = await ApiService.postMediaData(`/chat/`, formData);
+            
+            // Replace temp message with real message
+            setChatMessages(prev => 
+              prev.map(msg => 
+                msg.id === tempMessage.id ? { ...response, is_temp: false } : msg
+              )
+            );
+          }
+          setNewMessage("");
+          setSelectedFile(null);
+          showSnackbar("File message sent", "success");
+        } catch (error) {
+          console.error("Error sending file message:", error);
+          // Remove temp message on error
+          setChatMessages(prev => prev.filter(msg => !msg.is_temp));
+          if (error.response?.status === 500) {
+            showSnackbar("Server error - please try again later", "error");
+          } else if (error.response?.status === 401) {
+            showSnackbar("Authentication required - please login again", "error");
+          } else {
+            showSnackbar("Failed to send file message", "error");
+          }
+        }
       } else {
-        // Regular text message
-        await ApiService.postData(`/chat/`, {
-          message: messageText,
-          load_id: parseInt(id),
-          user: userId,
-          email: localStorage.getItem("email") || "user@example.com"
-        });
+        // Send text message using Socket.IO or fallback to REST API
+        try {
+          // Create temporary message for immediate display (like Telegram)
+          const tempMessage = {
+            id: `temp_${Date.now()}`,
+            message: messageText,
+            load_id: parseInt(id),
+            user: userId,
+            created_at: new Date().toISOString(),
+            is_temp: true
+          };
+          
+          // Add message immediately to chat
+          setChatMessages(prev => [...prev, tempMessage]);
+          
+          if (isSocketConnected) {
+            await chatSocketService.sendTextMessage(messageText, parseInt(id), userId);
+          } else {
+            // Fallback to REST API
+            const response = await ApiService.postData(`/chat/`, {
+              message: messageText,
+              load_id: parseInt(id),
+              user: userId,
+              email: localStorage.getItem("email") || "user@example.com"
+            });
+            
+            // Replace temp message with real message
+            setChatMessages(prev => 
+              prev.map(msg => 
+                msg.id === tempMessage.id ? { ...response, is_temp: false } : msg
+              )
+            );
+          }
+          setNewMessage("");
+          showSnackbar("Message sent", "success");
+        } catch (error) {
+          console.error("Error sending message:", error);
+          // Remove temp message on error
+          setChatMessages(prev => prev.filter(msg => !msg.is_temp));
+          if (error.response?.status === 500) {
+            showSnackbar("Server error - please try again later", "error");
+          } else if (error.response?.status === 401) {
+            showSnackbar("Authentication required - please login again", "error");
+          } else {
+            showSnackbar("Failed to send message", "error");
+          }
+        }
       }
       
-      setNewMessage("");
-      setSelectedFile(null);
-      fetchChatMessages();
-      showSnackbar("Message sent", "success");
-        } catch (error) {
+    } catch (error) {
       console.error("Error sending message:", error);
       showSnackbar("Failed to send message", "error");
     }
@@ -1479,21 +1786,39 @@ const LoadViewPage = () => {
       
       // For cross-origin URLs, we need to fetch first
       fetch(formattedUrl)
-        .then(response => response.blob())
-        .then(blob => {
+        .then(response => {
+          // Try to get the filename from Content-Disposition header
+          const contentDisposition = response.headers.get('Content-Disposition');
+          let serverFileName = '';
+          if (contentDisposition) {
+            const filenameMatch = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+            if (filenameMatch && filenameMatch[1]) {
+              serverFileName = filenameMatch[1].replace(/['"]/g, '');
+            }
+          }
+          return response.blob().then(blob => ({ blob, serverFileName }));
+        })
+        .then(({ blob, serverFileName }) => {
           // Create blob URL
           const blobUrl = URL.createObjectURL(blob);
           
-          // Create anchor element
+          // Create a hidden anchor element
           const a = document.createElement('a');
+          a.style.display = 'none';
           a.href = blobUrl;
-          a.download = fileName || 'download';
+          // Use server filename if available, fallback to URL's last segment, then fileName param
+          const originalName = serverFileName || url.split('/').pop() || fileName || 'download';
+          a.download = decodeURIComponent(originalName);
+          
+          // Append to body, click, and clean up safely
           document.body.appendChild(a);
           a.click();
           
           // Clean up
           setTimeout(() => {
-            document.body.removeChild(a);
+            if (a && a.parentNode) {
+              a.parentNode.removeChild(a);
+            }
             URL.revokeObjectURL(blobUrl);
           }, 100);
         })
@@ -1505,7 +1830,12 @@ const LoadViewPage = () => {
           a.download = fileName || 'download';
           document.body.appendChild(a);
           a.click();
-          document.body.removeChild(a);
+          // Safe cleanup
+          setTimeout(() => {
+            if (a && a.parentNode) {
+              a.parentNode.removeChild(a);
+            }
+          }, 100);
         });
     } catch (error) {
       console.error("Error downloading file:", error);
@@ -1544,38 +1874,211 @@ const LoadViewPage = () => {
   
   // Format file URL to use production API
   const getFormattedFileUrl = (url) => {
-    if (!url) return "";
-    return url.replace('https://0.0.0.0:8000/', 'https://blackhawks.nntexpressinc.com/');
+    if (!url || typeof url !== 'string') return "";
+    return url.startsWith('http') ? url : `https://blackhawks.nntexpressinc.com${url}`;
   };
 
-  // Format detailed timestamp with seconds
+  // Utility functions for consistent date/time handling
   const formatDetailedTime = (timestamp) => {
     if (!timestamp) return "Unknown time";
     
-    return new Date(timestamp).toLocaleString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-      hour12: true
-    });
+    try {
+      const date = new Date(timestamp);
+      if (isNaN(date.getTime())) return "Invalid Date";
+      
+      // Format in UTC to avoid timezone issues
+      return date.toLocaleString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: true,
+        timeZone: 'UTC'
+      }) + ' UTC';
+    } catch (error) {
+      console.error("Error formatting detailed time:", error);
+      return "Error";
+    }
+  };
+
+  // Convert datetime-local input to exact time ISO string for backend submission
+  // This treats the input as the exact time the user wants, not local time
+  const convertLocalToUTC = (localDateTimeString) => {
+    if (!localDateTimeString) return null;
+    
+    try {
+      // Parse the datetime-local string (YYYY-MM-DDTHH:mm format)
+      const [datePart, timePart] = localDateTimeString.split('T');
+      const [year, month, day] = datePart.split('-').map(Number);
+      const [hour, minute] = timePart.split(':').map(Number);
+      
+      // Create a Date object with the exact time specified by the user
+      // This treats the time as the exact time the user wants, regardless of timezone
+      const userSpecifiedDate = new Date(Date.UTC(year, month - 1, day, hour, minute));
+      
+      // Return the ISO string - this will be the exact time the user specified
+      return userSpecifiedDate.toISOString();
+    } catch (error) {
+      console.error("Error converting datetime-local to exact time:", error);
+      return null;
+    }
+  };
+
+  // Alternative approach: Convert separate date and time inputs to exact time ISO string
+  // This completely bypasses browser timezone handling
+  const convertDateAndTimeToUTC = (dateString, timeString) => {
+    if (!dateString || !timeString) return null;
+    
+    try {
+      // Parse date (YYYY-MM-DD format)
+      const [year, month, day] = dateString.split('-').map(Number);
+      
+      // Parse time (HH:mm format)
+      const [hour, minute] = timeString.split(':').map(Number);
+      
+      console.log("🕐 TIME CONVERSION DEBUG:");
+      console.log("  📅 User selected date:", dateString);
+      console.log("  🕕 User selected time:", timeString);
+      console.log("  📊 Parsed values - Year:", year, "Month:", month, "Day:", day, "Hour:", hour, "Minute:", minute);
+      
+      // Create a Date object with the exact time specified by the user
+      // Using Date.UTC ensures no timezone conversion
+      const userSpecifiedDate = new Date(Date.UTC(year, month - 1, day, hour, minute));
+      
+      console.log("  🌍 Created UTC Date object:", userSpecifiedDate);
+      console.log("  📤 Sending to backend:", userSpecifiedDate.toISOString());
+      
+      // Return the ISO string - this will be the exact time the user specified
+      return userSpecifiedDate.toISOString();
+    } catch (error) {
+      console.error("❌ Error converting date and time to exact time:", error);
+      return null;
+    }
+  };
+
+  // Helper function to extract date and time from ISO string for form fields
+  const extractDateAndTimeFromISO = (isoString) => {
+    if (!isoString) return { date: "", time: "" };
+    
+    try {
+      const date = new Date(isoString);
+      if (isNaN(date.getTime())) return { date: "", time: "" };
+      
+      // Extract date in YYYY-MM-DD format
+      const dateStr = date.toISOString().split('T')[0];
+      
+      // Extract time in HH:mm format (24-hour)
+      const timeStr = date.toISOString().split('T')[1].substring(0, 5);
+      
+      console.log("📅 EXTRACTING DATE/TIME FROM ISO:");
+      console.log("  📤 Original ISO:", isoString);
+      console.log("  📅 Extracted date:", dateStr);
+      console.log("  🕕 Extracted time:", timeStr);
+      
+      return { date: dateStr, time: timeStr };
+    } catch (error) {
+      console.error("❌ Error extracting date and time from ISO:", error);
+      return { date: "", time: "" };
+    }
+  };
+
+  // Convert UTC datetime to datetime-local format for input fields
+  // This displays the exact time as stored, without timezone conversion
+  const convertUTCToLocal = (utcDateTimeString) => {
+    if (!utcDateTimeString) return '';
+    
+    try {
+      const utcDate = new Date(utcDateTimeString);
+      if (isNaN(utcDate.getTime())) return '';
+      
+      // Format the date as YYYY-MM-DDTHH:mm for datetime-local input
+      // This shows the exact time as stored, not converted to local timezone
+      const year = utcDate.getUTCFullYear();
+      const month = String(utcDate.getUTCMonth() + 1).padStart(2, '0');
+      const day = String(utcDate.getUTCDate()).padStart(2, '0');
+      const hour = String(utcDate.getUTCHours()).padStart(2, '0');
+      const minute = String(utcDate.getUTCMinutes()).padStart(2, '0');
+      
+      return `${year}-${month}-${day}T${hour}:${minute}`;
+    } catch (error) {
+      console.error("Error converting UTC to datetime-local format:", error);
+      return '';
+    }
+  };
+
+  // Format time for display without timezone conversion (show exact time as stored)
+  const formatTimeForDisplay = (timestamp) => {
+    if (!timestamp) return "Not specified";
+    
+    try {
+      const date = new Date(timestamp);
+      if (isNaN(date.getTime())) return "Invalid Date";
+      
+      // Format the time exactly as it is, without timezone conversion
+      // This ensures the time shown is exactly what was saved
+      return date.toLocaleString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: 'numeric',
+        hour12: true,
+        timeZone: 'UTC' // Force UTC to show exact time as stored
+      }) + ' UTC';
+    } catch (error) {
+      console.error("Error formatting time for display:", error);
+      return "Error";
+    }
+  };
+
+  // Validate date fields for logical consistency
+  const validateDateFields = (formData) => {
+    const errors = [];
+    
+    // Check if FCFS fields are consistent
+    if (formData.fcfs_date && formData.fcfs_time && formData.plus_hour_date && formData.plus_hour_time) {
+      const fcfsDateTime = convertDateAndTimeToUTC(formData.fcfs_date, formData.fcfs_time);
+      const plusHourDateTime = convertDateAndTimeToUTC(formData.plus_hour_date, formData.plus_hour_time);
+      
+      if (fcfsDateTime && plusHourDateTime) {
+        const fcfsDate = new Date(fcfsDateTime);
+        const plusHourDate = new Date(plusHourDateTime);
+        
+        if (fcfsDate >= plusHourDate) {
+          errors.push("FCFS From time must be earlier than FCFS To time");
+        }
+      }
+    }
+    
+    // Past date validation removed as per business requirements
+    // Users can now enter past dates for appointmentdate and fcfs fields
+    
+    return errors;
   };
 
   // Format date with time for display
   const formatDateWithTime = (dateString) => {
     if (!dateString) return "Not specified";
     
-    const date = new Date(dateString);
-    return date.toLocaleString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: 'numeric',
-      minute: 'numeric',
-      hour12: true
-    });
+    try {
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) return "Invalid Date";
+      
+      // Format in UTC to avoid timezone issues
+      return date.toLocaleString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: 'numeric',
+        hour12: true,
+        timeZone: 'UTC'
+      }) + ' UTC';
+    } catch (error) {
+      console.error("Error formatting date with time:", error);
+      return "Error";
+    }
   };
 
   // Render chat messages
@@ -1683,7 +2186,13 @@ const LoadViewPage = () => {
                     )}
                     
                     {/* Message bubble */}
-                    <MessageBubble isCurrentUser={isCurrentUserMessage}>
+                    <MessageBubble 
+                      isCurrentUser={isCurrentUserMessage}
+                      sx={{
+                        opacity: message.is_temp ? 0.8 : 1,
+                        border: message.is_temp ? '1px dashed rgba(0,0,0,0.2)' : 'none'
+                      }}
+                    >
                       {/* Show message sender name for first message in chain */}
                       {!isPreviousSameUser && !isCurrentUserMessage && (
                         <Typography 
@@ -1718,9 +2227,30 @@ const LoadViewPage = () => {
                         alignItems: 'center', 
                         mt: 0.5
                       }}>
+                        {/* Temporary message indicator */}
+                        {message.is_temp && (
+                          <Box sx={{ 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            mr: 0.5,
+                            opacity: 0.7
+                          }}>
+                            <CircularProgress size={12} thickness={4} />
+                            <Typography 
+                              variant="caption" 
+                              sx={{ 
+                                ml: 0.5, 
+                                fontSize: '0.7rem',
+                                color: 'text.secondary'
+                              }}
+                            >
+                              Sending...
+                            </Typography>
+                          </Box>
+                        )}
                         {isEdited && (
                           <Typography 
-                            variant="caption" 
+                            variant="caption"
                             sx={{ 
                               fontSize: '0.65rem',
                               fontStyle: 'italic',
@@ -1812,119 +2342,252 @@ const LoadViewPage = () => {
     );
   };
 
-  // Function to render the file in chat
   const renderFileInChat = (fileUrl, fileName) => {
-    // Replace URL from development to production URL
     const formattedUrl = fileUrl ? getFormattedFileUrl(fileUrl) : '';
+    const fileExtension = fileName ? fileName.split('.').pop().toLowerCase() : '';
     
     if (isImageUrl(formattedUrl)) {
       return (
-        <Box 
-          sx={{ 
-            mt: 1, 
-            maxWidth: '200px',
-            cursor: 'pointer',
-            border: '1px solid rgba(0,0,0,0.1)',
-            borderRadius: 1,
-            overflow: 'hidden'
-          }}
-          onClick={() => handleFilePreview(formattedUrl, 'image', fileName)}
-        >
+        <Box sx={{ 
+          mt: 1, 
+          maxWidth: '280px',
+          cursor: 'pointer',
+          borderRadius: 2,
+          overflow: 'hidden',
+          position: 'relative',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+        }}>
           <img 
             src={formattedUrl} 
             alt="Image attachment" 
+            onClick={() => handleFilePreview(formattedUrl, 'image', fileName)}
             style={{ 
               width: '100%',
-              maxHeight: '150px',
+              maxHeight: '200px',
               objectFit: 'cover'
             }}
           />
+          <Box sx={{
+            position: 'absolute',
+            top: 0,
+            right: 0,
+            bottom: 0,
+            left: 0,
+            background: 'linear-gradient(180deg, rgba(0,0,0,0.4) 0%, transparent 30%, transparent 70%, rgba(0,0,0,0.4) 100%)',
+            opacity: 0,
+            transition: 'opacity 0.2s',
+            '&:hover': {
+              opacity: 1
+            }
+          }}>
+            <IconButton
+              size="small"
+              onClick={(e) => {
+                e.stopPropagation();
+                downloadFile(formattedUrl, fileName);
+              }}
+              sx={{
+                position: 'absolute',
+                bottom: 8,
+                right: 8,
+                bgcolor: 'rgba(255,255,255,0.9)',
+                '&:hover': {
+                  bgcolor: 'white'
+                },
+                padding: '6px'
+              }}
+            >
+              <Download fontSize="small" />
+            </IconButton>
+          </Box>
         </Box>
       );
-    } else if (isPdfFile(formattedUrl)) {
+    } else if (isPdfFile(formattedUrl) || fileExtension === 'pdf') {
       return (
-        <Box 
-          sx={{ 
-            display: 'flex', 
-            flexDirection: 'column',
-            mt: 1,
-          }}
-        >
-          <Typography 
-            variant="body1" 
-            sx={{ 
-              color: '#ffffff', 
-              fontWeight: 500,
-              fontSize: '0.9rem', 
-              mb: 0.5 
-            }}
-          >
-            PDF document
-          </Typography>
-          
-          <Box 
-            sx={{ 
-              display: 'flex', 
-              alignItems: 'center', 
-              gap: 1, 
-              cursor: 'pointer',
-            }}
-            onClick={() => handleFilePreview(formattedUrl, 'pdf', fileName)}
-          >
-            <PictureAsPdf sx={{ color: '#e53935', fontSize: 20 }} />
+        <Box sx={{
+          mt: 1,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 1.5,
+          p: 1.5,
+          bgcolor: 'rgba(229, 57, 53, 0.1)',
+          borderRadius: 2,
+          maxWidth: '320px',
+          border: '1px solid rgba(229, 57, 53, 0.2)',
+          transition: 'all 0.2s',
+          '&:hover': {
+            bgcolor: 'rgba(229, 57, 53, 0.15)',
+          }
+        }}>
+          <PictureAsPdf sx={{ color: '#e53935', fontSize: 28 }} />
+          <Box sx={{ 
+            flex: 1,
+            minWidth: 0
+          }}>
+            <Typography 
+              variant="body2" 
+              sx={{ 
+                fontWeight: 500,
+                color: '#e53935',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap'
+              }}
+            >
+              {fileName || 'PDF Document'}
+            </Typography>
             <Typography 
               variant="caption" 
               sx={{ 
-                color: '#ffffff',
-                fontSize: '0.75rem'
+                color: 'rgba(0,0,0,0.6)',
+                display: 'block'
               }}
             >
-              Click to view
+              PDF Document
             </Typography>
           </Box>
+          <Box sx={{ display: 'flex', gap: 0.5 }}>
+            <IconButton
+              size="small"
+              onClick={() => handleFilePreview(formattedUrl, 'pdf', fileName)}
+              sx={{ 
+                bgcolor: 'rgba(229, 57, 53, 0.1)',
+                '&:hover': {
+                  bgcolor: 'rgba(229, 57, 53, 0.2)'
+                }
+              }}
+            >
+              <Visibility sx={{ fontSize: 20, color: '#e53935' }} />
+            </IconButton>
+            <IconButton
+              size="small"
+              onClick={() => downloadFile(formattedUrl, fileName)}
+              sx={{ 
+                bgcolor: 'rgba(229, 57, 53, 0.1)',
+                '&:hover': {
+                  bgcolor: 'rgba(229, 57, 53, 0.2)'
+                }
+              }}
+            >
+              <Download sx={{ fontSize: 20, color: '#e53935' }} />
+            </IconButton>
+          </Box>
+        </Box>
+      );
+    } else if (fileExtension === 'doc' || fileExtension === 'docx') {
+      return (
+        <Box sx={{
+          mt: 1,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 1.5,
+          p: 1.5,
+          bgcolor: 'rgba(25, 118, 210, 0.1)',
+          borderRadius: 2,
+          maxWidth: '320px',
+          border: '1px solid rgba(25, 118, 210, 0.2)',
+          transition: 'all 0.2s',
+          '&:hover': {
+            bgcolor: 'rgba(25, 118, 210, 0.15)',
+          }
+        }}>
+          <Description sx={{ color: '#1976d2', fontSize: 28 }} />
+          <Box sx={{ 
+            flex: 1,
+            minWidth: 0
+          }}>
+            <Typography 
+              variant="body2" 
+              sx={{ 
+                fontWeight: 500,
+                color: '#1976d2',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap'
+              }}
+            >
+              {fileName || 'Word Document'}
+            </Typography>
+            <Typography 
+              variant="caption" 
+              sx={{ 
+                color: 'rgba(0,0,0,0.6)',
+                display: 'block'
+              }}
+            >
+              Word Document
+            </Typography>
+          </Box>
+          <IconButton
+            size="small"
+            onClick={() => downloadFile(formattedUrl, fileName)}
+            sx={{ 
+              bgcolor: 'rgba(25, 118, 210, 0.1)',
+              '&:hover': {
+                bgcolor: 'rgba(25, 118, 210, 0.2)'
+              }
+            }}
+          >
+            <Download sx={{ fontSize: 20, color: '#1976d2' }} />
+          </IconButton>
         </Box>
       );
     } else {
       return (
-        <Box 
-          sx={{ 
-            display: 'flex', 
-            flexDirection: 'column',
-            mt: 1,
-          }}
-        >
-          <Typography 
-            variant="body1" 
-            sx={{ 
-              color: '#ffffff', 
-              fontWeight: 500,
-              fontSize: '0.9rem', 
-              mb: 0.5 
-            }}
-          >
-            File attachment
-          </Typography>
-          
-          <Box 
-            sx={{ 
-              display: 'flex', 
-              alignItems: 'center', 
-              gap: 1, 
-              cursor: 'pointer',
-            }}
-            onClick={() => downloadFile(formattedUrl, fileName)}
-          >
-            <InsertDriveFile sx={{ color: '#ffffff', fontSize: 20 }} />
+        <Box sx={{
+          mt: 1,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 1.5,
+          p: 1.5,
+          bgcolor: 'rgba(0,0,0,0.04)',
+          borderRadius: 2,
+          maxWidth: '320px',
+          border: '1px solid rgba(0,0,0,0.08)',
+          transition: 'all 0.2s',
+          '&:hover': {
+            bgcolor: 'rgba(0,0,0,0.06)',
+          }
+        }}>
+          <InsertDriveFile sx={{ color: '#607d8b', fontSize: 28 }} />
+          <Box sx={{ 
+            flex: 1,
+            minWidth: 0
+          }}>
+            <Typography 
+              variant="body2" 
+              sx={{ 
+                fontWeight: 500,
+                color: 'text.primary',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap'
+              }}
+            >
+              {fileName || 'File'}
+            </Typography>
             <Typography 
               variant="caption" 
               sx={{ 
-                color: '#ffffff',
-                fontSize: '0.75rem'
+                color: 'text.secondary',
+                display: 'block'
               }}
             >
-              Click to download
+              {fileExtension.toUpperCase() || 'File'}
             </Typography>
           </Box>
+          <IconButton
+            size="small"
+            onClick={() => downloadFile(formattedUrl, fileName)}
+            sx={{ 
+              bgcolor: 'rgba(0,0,0,0.04)',
+              '&:hover': {
+                bgcolor: 'rgba(0,0,0,0.08)'
+              }
+            }}
+          >
+            <Download sx={{ fontSize: 20, color: '#607d8b' }} />
+          </IconButton>
         </Box>
       );
     }
@@ -1972,42 +2635,29 @@ const LoadViewPage = () => {
 
   // Completely replace the handleEditStop function
   const handleEditStop = (stop) => {
-    if (!permissions.stop_update) {
-      showSnackbar('You do not have permission to edit stops', 'error');
-      return;
-    }
     setEditingStop(stop.id);
     
-    // Format date fields for HTML datetime-local input (requires YYYY-MM-DDThh:mm format)
-    const formatDateTimeForInput = (dateStr) => {
-      if (!dateStr) return '';
-      
-      try {
-        // Check if dateStr is already a valid date string or needs conversion
-        const date = new Date(dateStr);
-        if (isNaN(date.getTime())) return ''; // Invalid date
-        
-        // Format to YYYY-MM-DDThh:mm
-        return date.toISOString().slice(0, 16);
-      } catch (error) {
-        console.error("Error formatting date:", error);
-        return '';
-      }
-    };
+    // Use the utility function for consistent date formatting
+    const formatDateTimeForInput = convertUTCToLocal;
 
-    console.log("Original stop data:", {
-      appointmentdate: stop.appointmentdate,
-      fcfs: stop.fcfs,
-      plus_hour: stop.plus_hour
-    });
+    console.log("📝 EDITING STOP - Original data from backend:");
+    console.log("  📅 Original appointmentdate:", stop.appointmentdate);
+    console.log("  🕕 Original fcfs:", stop.fcfs);
+    console.log("  🕕 Original plus_hour:", stop.plus_hour);
+    console.log("  📊 Complete stop object:", stop);
     
     // Set form data with properly formatted date values
+    const appointmentDateTime = extractDateAndTimeFromISO(stop.appointmentdate);
+    const fcfsDateTime = extractDateAndTimeFromISO(stop.fcfs);
+    const plusHourDateTime = extractDateAndTimeFromISO(stop.plus_hour);
+    
     const formattedData = {
       stop_name: stop.stop_name || "",
       company_name: stop.company_name || "",
       contact_name: stop.contact_name || "",
       reference_id: stop.reference_id || "",
-      appointmentdate: formatDateTimeForInput(stop.appointmentdate),
+      appointmentdate_date: appointmentDateTime.date,
+      appointmentdate_time: appointmentDateTime.time,
       time: stop.time || "",
       address1: stop.address1 || "",
       address2: stop.address2 || "",
@@ -2016,15 +2666,20 @@ const LoadViewPage = () => {
       city: stop.city || "",
       zip_code: stop.zip_code || "",
       note: stop.note || "",
-      fcfs: formatDateTimeForInput(stop.fcfs),
-      plus_hour: formatDateTimeForInput(stop.plus_hour)
+      fcfs_date: fcfsDateTime.date,
+      fcfs_time: fcfsDateTime.time,
+      plus_hour_date: plusHourDateTime.date,
+      plus_hour_time: plusHourDateTime.time
     };
     
-    console.log("Formatted stop data for form:", {
-      appointmentdate: formattedData.appointmentdate,
-      fcfs: formattedData.fcfs,
-      plus_hour: formattedData.plus_hour
-    });
+    console.log("📝 EDITING STOP - Formatted data for form:");
+    console.log("  📅 Formatted appointmentdate_date:", formattedData.appointmentdate_date);
+    console.log("  🕕 Formatted appointmentdate_time:", formattedData.appointmentdate_time);
+    console.log("  📅 Formatted fcfs_date:", formattedData.fcfs_date);
+    console.log("  🕕 Formatted fcfs_time:", formattedData.fcfs_time);
+    console.log("  📅 Formatted plus_hour_date:", formattedData.plus_hour_date);
+    console.log("  🕕 Formatted plus_hour_time:", formattedData.plus_hour_time);
+    console.log("  📊 Complete formatted data:", formattedData);
     
     setStopFormData(formattedData);
   };
@@ -2033,11 +2688,41 @@ const LoadViewPage = () => {
   const handleCancelEditStop = () => {
     setEditingStop(null);
     setIsAddingStop(false);
+    
+    // Reset form data
+    setStopFormData({
+      stop_name: "",
+      company_name: "",
+      contact_name: "",
+      reference_id: "",
+      appointmentdate_date: "",
+      appointmentdate_time: "",
+      time: "",
+      address1: "",
+      address2: "",
+      country: "USA",
+      state: "",
+      city: "",
+      zip_code: 0,
+      note: "",
+      fcfs_date: "",
+      fcfs_time: "",
+      plus_hour_date: "",
+      plus_hour_time: ""
+    });
   };
 
   // Function to handle form field changes
   const handleStopFormChange = (e) => {
     const { name, value } = e.target;
+    
+    // Log date/time field changes for debugging
+    if (name.includes('date') || name.includes('time')) {
+      console.log("🔄 FORM FIELD CHANGE:");
+      console.log("  📝 Field name:", name);
+      console.log("  📊 New value:", value);
+      console.log("  🕐 Timestamp:", new Date().toISOString());
+    }
     
     // Handle adding new stop
     if (name === 'stop_name' && value === 'add-new') {
@@ -2053,7 +2738,7 @@ const LoadViewPage = () => {
           return num > max ? num : max;
         }
         return max;
-      }, 1);
+      }, 0);
       
       const nextStopName = `Stop-${maxStopNumber + 1}`;
       
@@ -2064,25 +2749,30 @@ const LoadViewPage = () => {
       return;
     }
     
-    // If appointment date is being set, clear FCFS fields
-    if (name === 'appointmentdate' && value) {
+    // If appointment date or time is being set, clear FCFS fields
+    if ((name === 'appointmentdate_date' || name === 'appointmentdate_time') && value) {
       setStopFormData(prevData => ({
         ...prevData,
         [name]: value,
-        // Clear FCFS fields if appointment date is set
-        fcfs: '',
-        plus_hour: ''
+        // Clear FCFS fields if appointment date/time is set
+        fcfs_date: '',
+        fcfs_time: '',
+        plus_hour_date: '',
+        plus_hour_time: ''
       }));
       return;
     }
     
-    // If FCFS fields are being set, clear appointment date
-    if ((name === 'fcfs' || name === 'plus_hour') && value) {
+    // If FCFS fields are being set, clear appointment date/time
+    if ((name === 'fcfs_date' || name === 'fcfs_time' || name === 'plus_hour_date' || name === 'plus_hour_time') && value) {
       setStopFormData(prevData => ({
         ...prevData,
         [name]: value,
-        // Clear appointment date if FCFS fields are set
-        ...(name === 'fcfs' || prevData.fcfs || prevData.plus_hour ? { appointmentdate: '' } : {})
+        // Clear appointment date/time if FCFS fields are set
+        ...(name === 'fcfs_date' || name === 'fcfs_time' || prevData.fcfs_date || prevData.fcfs_time || prevData.plus_hour_date || prevData.plus_hour_time ? { 
+          appointmentdate_date: '', 
+          appointmentdate_time: '' 
+        } : {})
       }));
       return;
     }
@@ -2100,6 +2790,28 @@ const LoadViewPage = () => {
       showSnackbar('You do not have permission to add stops', 'error');
       return;
     }
+    
+    // Reset form data first
+    setStopFormData({
+      stop_name: "",
+      company_name: "",
+      contact_name: "",
+      reference_id: "",
+      appointmentdate_date: "",
+      appointmentdate_time: "",
+      time: "",
+      address1: "",
+      address2: "",
+      country: "USA",
+      state: "",
+      city: "",
+      zip_code: 0,
+      note: "",
+      fcfs_date: "",
+      fcfs_time: "",
+      plus_hour_date: "",
+      plus_hour_time: ""
+    });
     setIsAddingStop(true);
     
     // Determine the existing stops and next stop number
@@ -2130,29 +2842,22 @@ const LoadViewPage = () => {
       }
     }
     
-    setStopFormData({
-      stop_name: initialStopName,
-      company_name: "",
-      contact_name: "",
-      reference_id: "",
-      appointmentdate: "",
-      time: "",
-      address1: "",
-      address2: "",
-      country: "USA",
-      state: "",
-      city: "",
-      zip_code: "",
-      note: "",
-      fcfs: "",
-      plus_hour: ""
-    });
+    setStopFormData(prev => ({
+      ...prev,
+      stop_name: initialStopName
+    }));
   };
 
   // Function to save stop
   const handleSaveStop = async () => {
     if (!permissions.stop_create && !permissions.stop_update) {
       showSnackbar('You do not have permission to save stops', 'error');
+      return;
+    }
+    
+    // Validate that company_name is required
+    if (!stopFormData.company_name || stopFormData.company_name.trim() === '') {
+      showSnackbar('Company Name is required', 'error');
       return;
     }
     
@@ -2163,70 +2868,89 @@ const LoadViewPage = () => {
         load: parseInt(id)
       };
 
-      // Handle appointmentdate field
-      if (stopFormData.appointmentdate) {
-        formattedData.appointmentdate = new Date(stopFormData.appointmentdate).toISOString();
-        // If appointmentdate is set, fcfs and plus_hour are optional, set them to null if empty
-        if (!stopFormData.fcfs) {
-          formattedData.fcfs = null;
-        }
-        if (!stopFormData.plus_hour) {
-          formattedData.plus_hour = null;
-        }
+      // Handle appointmentdate field - combine date and time
+      if (stopFormData.appointmentdate_date && stopFormData.appointmentdate_time) {
+        // Convert separate date and time to exact time ISO string
+        formattedData.appointmentdate = convertDateAndTimeToUTC(stopFormData.appointmentdate_date, stopFormData.appointmentdate_time);
+        
+        // If appointmentdate is set, fcfs fields are optional, set them to null
+        formattedData.fcfs = null;
+        formattedData.plus_hour = null;
       } else {
         formattedData.appointmentdate = null;
       }
 
-      // Handle fcfs field
-      if (stopFormData.fcfs) {
-        formattedData.fcfs = new Date(stopFormData.fcfs).toISOString();
+      // Handle fcfs field - combine date and time
+      if (stopFormData.fcfs_date && stopFormData.fcfs_time) {
+        // Convert separate date and time to exact time ISO string
+        formattedData.fcfs = convertDateAndTimeToUTC(stopFormData.fcfs_date, stopFormData.fcfs_time);
+        
         // If fcfs is set but appointmentdate is not, make appointmentdate optional
-        if (!stopFormData.appointmentdate) {
+        if (!(stopFormData.appointmentdate_date && stopFormData.appointmentdate_time)) {
           formattedData.appointmentdate = null;
         }
       } else {
         formattedData.fcfs = null;
       }
 
-      // Handle plus_hour field - now it's a datetime-local field
-      if (stopFormData.plus_hour) {
-        formattedData.plus_hour = new Date(stopFormData.plus_hour).toISOString();
+      // Handle plus_hour field - combine date and time
+      if (stopFormData.plus_hour_date && stopFormData.plus_hour_time) {
+        // Convert separate date and time to exact time ISO string
+        formattedData.plus_hour = convertDateAndTimeToUTC(stopFormData.plus_hour_date, stopFormData.plus_hour_time);
       } else {
         formattedData.plus_hour = null;
       }
 
+      // Validate date fields before saving
+      const dateValidationErrors = validateDateFields(stopFormData);
+      if (dateValidationErrors.length > 0) {
+        showSnackbar(dateValidationErrors.join('. '), "error");
+        return;
+      }
+
       // For numeric fields, ensure they are numbers or null
-      if (formattedData.zip_code && formattedData.zip_code.trim()) {
+      if (formattedData.zip_code) {
         formattedData.zip_code = parseInt(formattedData.zip_code) || null;
-      } else {
-        formattedData.zip_code = null; // Allow null zip_code
       }
       
       if (formattedData.reference_id && !isNaN(formattedData.reference_id)) {
         formattedData.reference_id = parseInt(formattedData.reference_id) || null;
       }
 
-      console.log("Saving stop with data:", formattedData);
+      console.log("💾 SAVING STOP - FINAL DATA:");
+      console.log("  📋 Complete formatted data:", formattedData);
+      console.log("  📅 Appointment date being sent:", formattedData.appointmentdate);
+      console.log("  🕕 FCFS From being sent:", formattedData.fcfs);
+      console.log("  🕕 FCFS To being sent:", formattedData.plus_hour);
+      console.log("  🔍 Raw form data for reference:", stopFormData);
 
       let response;
       if (editingStop) {
         // Update existing stop
         response = await ApiService.putData(`/stops/${editingStop}/`, formattedData);
+        console.log("✅ STOP UPDATED - Backend response:", response);
+        console.log("  📅 Appointment date received:", response.appointmentdate);
+        console.log("  🕕 FCFS From received:", response.fcfs);
+        console.log("  🕕 FCFS To received:", response.plus_hour);
         showSnackbar("Stop updated successfully", "success");
       } else if (isAddingStop) {
         // Create new stop
         response = await ApiService.postData(`/stops/`, formattedData);
+        console.log("✅ STOP CREATED - Backend response:", response);
+        console.log("  📅 Appointment date received:", response.appointmentdate);
+        console.log("  🕕 FCFS From received:", response.fcfs);
+        console.log("  🕕 FCFS To received:", response.plus_hour);
         
-        // Agar yangi stop yaratilgan bo'lsa, loadni "stop" arrayiga shu stopning ID sini qo'shish kerak
+        // If new stop was created, add the stop ID to the load's "stop" array
         if (response && response.id) {
-          // Avval hozirgi loadni olamiz
+          // First get the current load
           const currentLoad = await ApiService.getData(`/load/${id}/`);
           const currentStopIds = currentLoad.stop ? currentLoad.stop.map(s => s.id) : [];
           
-          // Yangi stop ID sini qo'shamiz
+          // Add the new stop ID
           const updatedStopIds = [...currentStopIds, response.id];
           
-          // Loadni yangilaymiz
+          // Update the load
           await ApiService.patchData(`/load/${id}/`, {
             stop: updatedStopIds
           });
@@ -2237,6 +2961,28 @@ const LoadViewPage = () => {
       
       // Refresh stops data
       fetchAllStops();
+      
+      // Reset form data
+      setStopFormData({
+        stop_name: "",
+        company_name: "",
+        contact_name: "",
+        reference_id: "",
+        appointmentdate_date: "",
+        appointmentdate_time: "",
+        time: "",
+        address1: "",
+        address2: "",
+        country: "USA",
+        state: "",
+        city: "",
+        zip_code: 0,
+        note: "",
+        fcfs_date: "",
+        fcfs_time: "",
+        plus_hour_date: "",
+        plus_hour_time: ""
+      });
       
       // Reset edit state
       setEditingStop(null);
@@ -2250,20 +2996,49 @@ const LoadViewPage = () => {
 
   const fetchAllStops = async () => {
     try {
-      // Loadni qayta yuklash bilan, "stop" field ichidagi ma'lumotlarni olamiz
+      setIsStopsLoading(true);
+      setStopsError(null);
+      
+      // Reload the load to get updated "stop" field data
       const loadData = await ApiService.getData(`/load/${id}/`);
       
-      // Loadni "stop" fieldi bilan yangilaymiz
+      // Only fetch stops if they were explicitly created for this load
+      // Don't try to restore stops that don't exist
+      if (loadData && (!loadData.stop || loadData.stop.length === 0)) {
+        console.log('Load has no stops - this is normal for new loads');
+        // Don't try to fetch or restore stops for new loads
+        setLoad(loadData);
+        return;
+      }
+      
+      // Update the load with existing "stop" field data
       setLoad(loadData);
       
       // Ensure editing states are reset after fetching stops
       setEditingStop(null);
       setIsAddingStop(false);
       
-      console.log("Fetched stops from load:", loadData.stop);
+      console.log("🔄 STOPS REFRESHED:");
+      console.log("  📋 Complete load data:", loadData);
+      if (loadData.stop && loadData.stop.length > 0) {
+        console.log("  🛑 Stops found:", loadData.stop.length);
+        loadData.stop.forEach((stop, index) => {
+          console.log(`    Stop ${index + 1}:`, {
+            name: stop.stop_name,
+            appointmentdate: stop.appointmentdate,
+            fcfs: stop.fcfs,
+            plus_hour: stop.plus_hour
+          });
+        });
+      } else {
+        console.log("  🛑 No stops found");
+      }
     } catch (error) {
       console.error("Error fetching stops:", error);
-      showSnackbar("Failed to load stops", "error");
+      setStopsError('Failed to fetch stops data');
+      showSnackbar("Failed to fetch stops", "error");
+    } finally {
+      setIsStopsLoading(false);
     }
   };
 
@@ -2316,21 +3091,56 @@ const LoadViewPage = () => {
   const handleFileUpload = async (event, fileType) => {
     if (!permissions.load_update) {
       showSnackbar('You do not have permission to upload files', 'error');
-      return;
     }
     
     const file = event.target.files[0];
     if (!file) return;
     
     try {
+      // Store current stops data before file upload
+      const currentStops = load.stop || [];
+      
       const formData = new FormData();
-      formData.append(fileType, file);
+      const fileName = file.name; // Get original file name
+      formData.append('filename', fileName); // Send original filename to backend
+      formData.append(fileType, file, fileName); // Append file with original name
       
       await ApiService.putMediaData(`/load/${id}/`, formData);
       
-      // Refresh data
+      // Refresh load data while preserving stops
       const updatedLoad = await ApiService.getData(`/load/${id}/`);
-      setLoad(updatedLoad);
+      
+      // Only restore stops if this load actually had stops before the operation
+      // This prevents linking all stops to new loads
+      if (updatedLoad && currentStops.length > 0) {
+        // Check if stops were actually lost (not just a new load with no stops)
+        if (!updatedLoad.stop || updatedLoad.stop.length === 0) {
+          // Only restore if we're sure this load should have stops
+          // For new loads, don't restore stops
+          if (load.stop && load.stop.length > 0) {
+            console.warn('Stops data was lost during file upload, restoring...');
+            
+            // Restore stops by updating the load with the stops data
+            const stopIds = currentStops.map(stop => stop.id);
+            await ApiService.patchData(`/load/${id}/`, {
+              stop: stopIds
+            });
+            
+            // Fetch the load again with restored stops
+            const restoredLoad = await ApiService.getData(`/load/${id}/`);
+            setLoad(restoredLoad);
+          } else {
+            // This is a new load with no stops, don't restore
+            setLoad(updatedLoad);
+          }
+        } else {
+          // Stops are present, update normally
+          setLoad(updatedLoad);
+        }
+      } else {
+        // No stops to preserve, update normally
+        setLoad(updatedLoad);
+      }
       
       showSnackbar(`File uploaded successfully`, "success");
     } catch (error) {
@@ -2406,6 +3216,9 @@ const LoadViewPage = () => {
       fetchTrailers();
     }
   }, [isLoading, load]);
+
+  // Removed automatic stops restoration to prevent linking all stops to new loads
+  // New loads should start with no stops
   
   // Handle edit section
   const handleEditSection = (section) => {
@@ -2444,14 +3257,14 @@ const LoadViewPage = () => {
       setEditFormData(formData);
       console.log("Edit equipment formData:", formData);
       
-      // Unitdan ma'lumot olish uchun
+              // Get information from unit
       if (load.unit_id) {
         const selectedUnit = units.find(unit => unit.id === load.unit_id);
         if (selectedUnit) {
-          // Load oynasi ochilganda, unit ma'lumotlaridan trailer ma'lumotlarini olish
+          // When load page opens, get trailer information from unit data
           if (selectedUnit.trailer && selectedUnit.trailer.length > 0) {
             const trailerId = selectedUnit.trailer[0];
-            // Trailer ma'lumotlarini olish
+            // Get trailer information
             const fetchTrailerInfo = async () => {
               try {
                 const trailerInfo = await ApiService.getData(`/trailer/${trailerId}/`);
@@ -2536,7 +3349,8 @@ const LoadViewPage = () => {
           company_name: editFormData.company_name,
           equipment_type: editFormData.equipment_type,
           unit_id: editFormData.unit_id || null,
-          team_id: editFormData.team_id || null
+          team_id: editFormData.team_id || null,
+          weight: editFormData.weight ? editFormData.weight.toString() : null
         };
 
         // If unit is selected, update truck, trailer, and driver as well
@@ -2563,7 +3377,7 @@ const LoadViewPage = () => {
           driver_pay: editFormData.driver_pay ? parseFloat(editFormData.driver_pay) : null
         };
       } else if (editingSection === 'equipment') {
-        // Tuzatilgan qism - trailerga tegishli ma'lumotlarni ham qo'shish
+        // Fixed section - add trailer-related information as well
         dataToUpdate = {
           truck: editFormData.truck ? parseInt(editFormData.truck) : null,
           trailer: editFormData.trailer ? parseInt(editFormData.trailer) : null,
@@ -2576,7 +3390,7 @@ const LoadViewPage = () => {
           if (selectedUnit) {
             dataToUpdate.team_id = selectedUnit.team_id;
             
-            // Unitdan truck, trailer, va driver ma'lumotlarini olish
+            // Get truck, trailer, and driver information from unit
             if (selectedUnit.truck && selectedUnit.truck.length > 0) {
               dataToUpdate.truck = selectedUnit.truck[0];
             }
@@ -2627,6 +3441,9 @@ const LoadViewPage = () => {
         };
       }
       
+      // Store current stops data before updating
+      const currentStops = load.stop || [];
+      
       // Update the load data using PATCH to only update specific fields
       const updatedLoad = await ApiService.patchData(`/load/${id}/`, dataToUpdate);
       console.log("Updated load response:", updatedLoad);
@@ -2634,8 +3451,36 @@ const LoadViewPage = () => {
       // Refresh data after update to ensure all fields are up to date
       const refreshedLoad = await ApiService.getData(`/load/${id}/`);
       
-      // Update local state with complete data
-      setLoad(refreshedLoad);
+      // Only restore stops if this load actually had stops before the operation
+      // This prevents linking all stops to new loads
+      if (refreshedLoad && currentStops.length > 0) {
+        if (!refreshedLoad.stop || refreshedLoad.stop.length === 0) {
+          // Only restore if we're sure this load should have stops
+          // For new loads, don't restore stops
+          if (load.stop && load.stop.length > 0) {
+            console.warn('Stops data was lost during load update, restoring...');
+            
+            // Restore stops by updating the load with the stops data
+            const stopIds = currentStops.map(stop => stop.id);
+            await ApiService.patchData(`/load/${id}/`, {
+              stop: stopIds
+            });
+            
+            // Fetch the load again with restored stops
+            const restoredLoad = await ApiService.getData(`/load/${id}/`);
+            setLoad(restoredLoad);
+          } else {
+            // This is a new load with no stops, don't restore
+            setLoad(refreshedLoad);
+          }
+        } else {
+          // Stops are present, update normally
+          setLoad(refreshedLoad);
+        }
+      } else {
+        // No stops to preserve, update normally
+        setLoad(refreshedLoad);
+      }
       
       showSnackbar('Load updated successfully', 'success');
       
@@ -2700,7 +3545,7 @@ const LoadViewPage = () => {
     }
   };
 
-  // Yangi xabarlar kelganda scroll qilish
+          // Scroll to bottom when new messages arrive
   useEffect(() => {
     if (shouldScrollToBottom && chatContainerRef.current) {
       chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
@@ -2725,7 +3570,7 @@ const LoadViewPage = () => {
       setUnits(unitsData);
     } catch (error) {
       console.error('Error fetching units:', error);
-      showSnackbar('Unitlarni yuklashda xatolik yuz berdi', 'error');
+      showSnackbar('Error loading units', 'error');
     }
   };
 
@@ -2736,7 +3581,7 @@ const LoadViewPage = () => {
       setTeams(teamsData);
     } catch (error) {
       console.error('Error fetching teams:', error);
-      showSnackbar('Teamlarni yuklashda xatolik yuz berdi', 'error');
+      showSnackbar('Error loading teams', 'error');
     }
   };
 
@@ -2884,20 +3729,54 @@ const LoadViewPage = () => {
     }
   };
 
+  // Function to sort stops in the correct order: Pick Up, Stop-1, Stop-2, Delivery
+  const sortStopsInOrder = (stops) => {
+    if (!stops || stops.length === 0) return [];
+    
+    return stops.sort((a, b) => {
+      // Pick Up always comes first
+      if (a.stop_name === "PICKUP") return -1;
+      if (b.stop_name === "PICKUP") return 1;
+      
+      // Delivery always comes last
+      if (a.stop_name === "DELIVERY") return 1;
+      if (b.stop_name === "DELIVERY") return -1;
+      
+      // For numbered stops, sort by number
+      if (a.stop_name.startsWith('Stop-') && b.stop_name.startsWith('Stop-')) {
+        const aNum = parseInt(a.stop_name.match(/Stop-(\d+)/)?.[1] || '0', 10);
+        const bNum = parseInt(b.stop_name.match(/Stop-(\d+)/)?.[1] || '0', 10);
+        return aNum - bNum;
+      }
+      
+      // If one is numbered and the other isn't, numbered comes first
+      if (a.stop_name.startsWith('Stop-')) return -1;
+      if (b.stop_name.startsWith('Stop-')) return 1;
+      
+      // Default alphabetical order for other stops
+      return a.stop_name.localeCompare(b.stop_name);
+    });
+  };
+
   // Add a function to generate stop options
   const generateStopOptions = (stops) => {
     // Always have PICKUP and DELIVERY as options
     const options = [
-      { value: "PICKUP", label: "Pickup" },
+      { value: "PICKUP", label: "Pick Up" },
       { value: "DELIVERY", label: "Delivery" }
     ];
     
-    // Add any existing numbered stops (Stop-2, Stop-3, etc.)
+    // Add any existing numbered stops (Stop-1, Stop-2, etc.)
     const existingNumberedStops = stops
       .filter(s => s.stop_name.startsWith('Stop-'))
-      .map(s => s.stop_name);
+      .map(s => s.stop_name)
+      .sort((a, b) => {
+        const aNum = parseInt(a.match(/Stop-(\d+)/)?.[1] || '0', 10);
+        const bNum = parseInt(b.match(/Stop-(\d+)/)?.[1] || '0', 10);
+        return aNum - bNum;
+      });
     
-    // Add all existing numbered stops to options
+    // Add all existing numbered stops to options in order
     existingNumberedStops.forEach(stopName => {
       if (!options.some(opt => opt.value === stopName)) {
         options.push({ value: stopName, label: stopName });
@@ -2912,7 +3791,7 @@ const LoadViewPage = () => {
         return num > max ? num : max;
       }
       return max;
-    }, 1);
+    }, 0);
     
     // Add the next stop in sequence
     const nextStopName = `Stop-${maxStopNumber + 1}`;
@@ -2940,7 +3819,7 @@ const LoadViewPage = () => {
         currentLoad.stop.filter(s => s.id !== stopId).map(s => s.id) : 
         [];
       
-      // Loadni yangilangan stop array bilan yangilaymiz
+              // Update the load with the updated stop array
       await ApiService.patchData(`/load/${id}/`, {
         stop: updatedStopIds
       });
@@ -2971,7 +3850,7 @@ const LoadViewPage = () => {
     setDeleteStopDialog({
       open: true,
       stopId: stop.id,
-      stopName: stop.stop_name === "PICKUP" ? "Pickup" : 
+      stopName: stop.stop_name === "PICKUP" ? "Pick Up" : 
                 stop.stop_name === "DELIVERY" ? "Delivery" : 
                 stop.stop_name
     });
@@ -3113,29 +3992,45 @@ const LoadViewPage = () => {
   const formatMessageTime = (timestamp) => {
     if (!timestamp) return "Invalid Date";
     
-    const messageDate = new Date(timestamp);
-    const today = new Date();
-    const yesterday = new Date();
-    yesterday.setDate(today.getDate() - 1);
-    
-    // If message from today, just show time
-    if (messageDate.toDateString() === today.toDateString()) {
-      return messageDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+    try {
+      const messageDate = new Date(timestamp);
+      if (isNaN(messageDate.getTime())) return "Invalid Date";
+      
+      const today = new Date();
+      const yesterday = new Date();
+      yesterday.setDate(today.getDate() - 1);
+      
+      // If message from today, just show time in UTC
+      if (messageDate.toDateString() === today.toDateString()) {
+        return messageDate.toLocaleTimeString('en-US', { 
+          hour: '2-digit', 
+          minute: '2-digit',
+          timeZone: 'UTC'
+        }) + ' UTC';
+      }
+      
+      // If message from yesterday, show 'Yesterday' + time in UTC
+      if (messageDate.toDateString() === yesterday.toDateString()) {
+        return `Yesterday, ${messageDate.toLocaleTimeString('en-US', { 
+          hour: '2-digit', 
+          minute: '2-digit',
+          timeZone: 'UTC'
+        })} UTC`;
+      }
+      
+      // Otherwise show full date in UTC
+      return messageDate.toLocaleString('en-US', {
+        hour: '2-digit',
+        minute: '2-digit',
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        timeZone: 'UTC'
+      }) + ' UTC';
+    } catch (error) {
+      console.error("Error formatting message time:", error);
+      return "Error";
     }
-    
-    // If message from yesterday, show 'Yesterday' + time
-    if (messageDate.toDateString() === yesterday.toDateString()) {
-      return `Yesterday, ${messageDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`;
-    }
-    
-    // Otherwise show full date
-    return messageDate.toLocaleString('en-US', {
-      hour: '2-digit',
-      minute: '2-digit',
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric'
-    });
   };
 
   return (
@@ -3168,9 +4063,20 @@ const LoadViewPage = () => {
             {/* Stops Information with Edit Functionality */}
             <StopsContainer>
               <StopsHeader>
-                <Typography variant="subtitle2" fontWeight={600}>
-                  Stops
-                </Typography>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                  <Typography variant="subtitle2" fontWeight={600}>
+                    Stops
+                  </Typography>
+                  {load.stop && load.stop.length > 0 && (
+                    <Typography variant="caption" color="text.secondary">
+                      {load.stop.length} stop{load.stop.length !== 1 ? 's' : ''} • Route: {sortStopsInOrder(load.stop).map(stop => 
+                        stop.stop_name === "PICKUP" ? "Pick Up" : 
+                        stop.stop_name === "DELIVERY" ? "Delivery" : 
+                        stop.stop_name
+                      ).join(' → ')}
+                    </Typography>
+                  )}
+                </Box>
                 <Box>
                   {/* Commented out by user
                   <IconButton 
@@ -3183,16 +4089,28 @@ const LoadViewPage = () => {
                       <MdCheckCircle size={18} />
                     }
                   </IconButton> */}
-                  {permissions.stop_create && (
+                  <Box sx={{ display: 'flex', gap: 1 }}>
                     <Button 
-                      startIcon={<AddIcon />} 
+                      startIcon={<RefreshIcon />} 
                       size="small" 
-                      onClick={handleAddStop}
-                      disabled={isAddingStop || editingStop !== null}
+                      variant="outlined"
+                      onClick={fetchAllStops}
+                      disabled={isAddingStop || editingStop !== null || isStopsLoading}
+                      title="Refresh stops data"
                     >
-                      Add Stop
+                      {isStopsLoading ? 'Refreshing...' : 'Refresh'}
                     </Button>
-                  )}
+                    {permissions.stop_create && (
+                      <Button 
+                        startIcon={<AddIcon />} 
+                        size="small" 
+                        onClick={handleAddStop}
+                        disabled={isAddingStop || editingStop !== null}
+                      >
+                        Add Stop
+                      </Button>
+                    )}
+                  </Box>
                 </Box>
               </StopsHeader>
               
@@ -3243,6 +4161,7 @@ const LoadViewPage = () => {
                         name="company_name"
                         value={stopFormData.company_name}
                         onChange={handleStopFormChange}
+                        required
                       />
                     </Grid>
                     <Grid item xs={12} md={6}>
@@ -3265,51 +4184,125 @@ const LoadViewPage = () => {
                         onChange={handleStopFormChange}
                       />
                     </Grid>
+                    {/* Appointment Date/Time Row */}
                     <Grid item xs={12}>
+                      <Typography variant="subtitle2" sx={{ mb: 1, color: 'text.secondary' }}>
+                        Appointment Date & Time
+                      </Typography>
+                    </Grid>
+                    <Grid item xs={12} md={6}>
+                      <TextField
+                        fullWidth
+                        label="Appointment Date"
+                        name="appointmentdate_date"
+                        type="date"
+                        value={stopFormData.appointmentdate_date || ''}
+                        onChange={handleStopFormChange}
+                        InputLabelProps={{
+                          shrink: true,
+                        }}
+                        helperText="Select appointment date"
+                        // Disable if FCFS fields are filled
+                        disabled={!!(stopFormData.fcfs_date || stopFormData.fcfs_time || stopFormData.plus_hour_date || stopFormData.plus_hour_time)}
+                        size="medium"
+                      />
+                    </Grid>
+                    <Grid item xs={12} md={6}>
                       <TextField
                         fullWidth
                         label="Appointment Time"
-                        name="appointmentdate"
-                        type="datetime-local"
-                        value={stopFormData.appointmentdate || ''}
+                        name="appointmentdate_time"
+                        type="time"
+                        value={stopFormData.appointmentdate_time || ''}
                         onChange={handleStopFormChange}
                         InputLabelProps={{
                           shrink: true,
                         }}
+                        helperText="Select appointment time (24-hour format)"
                         // Disable if FCFS fields are filled
-                        disabled={!!(stopFormData.fcfs || stopFormData.plus_hour)}
+                        disabled={!!(stopFormData.fcfs_date || stopFormData.fcfs_time || stopFormData.plus_hour_date || stopFormData.plus_hour_time)}
+                        size="medium"
+                      />
+                    </Grid>
+                    {/* FCFS From Row */}
+                    <Grid item xs={12}>
+                      <Typography variant="subtitle2" sx={{ mb: 1, color: 'text.secondary' }}>
+                        FCFS From (First Come, First Served - Start)
+                      </Typography>
+                    </Grid>
+                    <Grid item xs={12} md={6}>
+                      <TextField
+                        fullWidth
+                        label="FCFS From Date"
+                        name="fcfs_date"
+                        type="date"
+                        value={stopFormData.fcfs_date || ''}
+                        onChange={handleStopFormChange}
+                        InputLabelProps={{
+                          shrink: true,
+                        }}
+                        helperText="Select start date"
+                        // Disable if appointment date is filled
+                        disabled={!!(stopFormData.appointmentdate_date || stopFormData.appointmentdate_time)}
+                        size="medium"
                       />
                     </Grid>
                     <Grid item xs={12} md={6}>
                       <TextField
                         fullWidth
-                        label="FCFS From"
-                        name="fcfs"
-                        type="datetime-local"
-                        value={stopFormData.fcfs || ''}
+                        label="FCFS From Time"
+                        name="fcfs_time"
+                        type="time"
+                        value={stopFormData.fcfs_time || ''}
                         onChange={handleStopFormChange}
                         InputLabelProps={{
                           shrink: true,
                         }}
-                        helperText="Start time of the interval"
+                        helperText="Select start time (24-hour format)"
                         // Disable if appointment date is filled
-                        disabled={!!stopFormData.appointmentdate}
+                        disabled={!!(stopFormData.appointmentdate_date || stopFormData.appointmentdate_time)}
+                        size="medium"
+                      />
+                    </Grid>
+                    
+                    {/* FCFS To Row */}
+                    <Grid item xs={12}>
+                      <Typography variant="subtitle2" sx={{ mb: 1, color: 'text.secondary' }}>
+                        FCFS To (First Come, First Served - End)
+                      </Typography>
+                    </Grid>
+                    <Grid item xs={12} md={6}>
+                      <TextField
+                        fullWidth
+                        label="FCFS To Date"
+                        name="plus_hour_date"
+                        type="date"
+                        value={stopFormData.plus_hour_date || ''}
+                        onChange={handleStopFormChange}
+                        InputLabelProps={{
+                          shrink: true,
+                        }}
+                        helperText="Select end date"
+                        // Disable if appointment date is filled
+                        disabled={!!(stopFormData.appointmentdate_date || stopFormData.appointmentdate_time)}
+                        size="medium"
                       />
                     </Grid>
                     <Grid item xs={12} md={6}>
                       <TextField
                         fullWidth
-                        label="FCFS To"
-                        name="plus_hour"
-                        type="datetime-local"
-                        value={stopFormData.plus_hour || ''}
+                        label="FCFS To Time"
+                        name="plus_hour_time"
+                        type="time"
+                        value={stopFormData.plus_hour_time || ''}
                         onChange={handleStopFormChange}
                         InputLabelProps={{
                           shrink: true,
                         }}
-                        helperText="End time of the interval"
+                        helperText="Select end time (24-hour format)"
                         // Disable if appointment date is filled
-                        disabled={!!stopFormData.appointmentdate}
+                        disabled={!!(stopFormData.appointmentdate_date || stopFormData.appointmentdate_time)}
+                        size="medium"
                       />
                     </Grid>
                     <Grid item xs={12}>
@@ -3405,8 +4398,50 @@ const LoadViewPage = () => {
               )}
               
               {/* Show stops when not adding a new one */}
-              {!isAddingStop && (load.stop && load.stop.length > 0 ? (
-                load.stop.map(stop => (
+              {/* Show error message if stops failed to load */}
+              {stopsError && (
+                <Box sx={{ 
+                  p: 2, 
+                  mx: 2, 
+                  mb: 2, 
+                  bgcolor: 'error.light', 
+                  color: 'error.contrastText', 
+                  borderRadius: 1,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 1
+                }}>
+                  <Info color="inherit" />
+                  <Typography variant="body2">
+                    {stopsError}
+                  </Typography>
+                  <Button 
+                    size="small" 
+                    variant="contained" 
+                    onClick={fetchAllStops}
+                    disabled={isStopsLoading}
+                    sx={{ ml: 'auto' }}
+                  >
+                    Retry
+                  </Button>
+                </Box>
+              )}
+
+              {/* Show loading state */}
+              {isStopsLoading && (
+                <Box sx={{ 
+                  p: 3, 
+                  textAlign: 'center', 
+                  color: 'text.secondary' 
+                }}>
+                  <CircularProgress size={24} sx={{ mb: 1 }} />
+                  <Typography variant="body2">Loading stops...</Typography>
+                </Box>
+              )}
+
+              {/* Show stops when not adding a new one */}
+              {!isAddingStop && !isStopsLoading && (load.stop && load.stop.length > 0 ? (
+                sortStopsInOrder(load.stop).map(stop => (
                   editingStop === stop.id ? (
                     <StopEditContainer key={stop.id}>
                       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
@@ -3466,6 +4501,7 @@ const LoadViewPage = () => {
                             name="company_name"
                             value={stopFormData.company_name}
                             onChange={handleStopFormChange}
+                            required
                           />
                         </Grid>
                         <Grid item xs={12} md={6}>
@@ -3488,51 +4524,126 @@ const LoadViewPage = () => {
                             onChange={handleStopFormChange}
                           />
                         </Grid>
+                        {/* Appointment Date/Time Row */}
                         <Grid item xs={12}>
+                          <Typography variant="subtitle2" sx={{ mb: 1, color: 'text.secondary' }}>
+                            Appointment Date & Time
+                          </Typography>
+                        </Grid>
+                        <Grid item xs={12} md={6}>
+                          <TextField
+                            fullWidth
+                            label="Appointment Date"
+                            name="appointmentdate_date"
+                            type="date"
+                            value={stopFormData.appointmentdate_date || ''}
+                            onChange={handleStopFormChange}
+                            InputLabelProps={{
+                              shrink: true,
+                            }}
+                            helperText="Select appointment date"
+                            // Disable if FCFS fields are filled
+                            disabled={!!(stopFormData.fcfs_date || stopFormData.fcfs_time || stopFormData.plus_hour_date || stopFormData.plus_hour_time)}
+                            size="medium"
+                          />
+                        </Grid>
+                        <Grid item xs={12} md={6}>
                           <TextField
                             fullWidth
                             label="Appointment Time"
-                            name="appointmentdate"
-                            type="datetime-local"
-                            value={stopFormData.appointmentdate || ''}
+                            name="appointmentdate_time"
+                            type="time"
+                            value={stopFormData.appointmentdate_time || ''}
                             onChange={handleStopFormChange}
                             InputLabelProps={{
                               shrink: true,
                             }}
+                            helperText="Select appointment time (24-hour format)"
                             // Disable if FCFS fields are filled
-                            disabled={!!(stopFormData.fcfs || stopFormData.plus_hour)}
+                            disabled={!!(stopFormData.fcfs_date || stopFormData.fcfs_time || stopFormData.plus_hour_date || stopFormData.plus_hour_time)}
+                            size="medium"
+                          />
+                        </Grid>
+                        
+                        {/* FCFS From Row */}
+                        <Grid item xs={12}>
+                          <Typography variant="subtitle2" sx={{ mb: 1, color: 'text.secondary' }}>
+                            FCFS From (First Come, First Served - Start)
+                          </Typography>
+                        </Grid>
+                        <Grid item xs={12} md={6}>
+                          <TextField
+                            fullWidth
+                            label="FCFS From Date"
+                            name="fcfs_date"
+                            type="date"
+                            value={stopFormData.fcfs_date || ''}
+                            onChange={handleStopFormChange}
+                            InputLabelProps={{
+                              shrink: true,
+                            }}
+                            helperText="Select start date"
+                            // Disable if appointment date is filled
+                            disabled={!!(stopFormData.appointmentdate_date || stopFormData.appointmentdate_time)}
+                            size="medium"
                           />
                         </Grid>
                         <Grid item xs={12} md={6}>
                           <TextField
                             fullWidth
-                            label="FCFS From"
-                            name="fcfs"
-                            type="datetime-local"
-                            value={stopFormData.fcfs || ''}
+                            label="FCFS From Time"
+                            name="fcfs_time"
+                            type="time"
+                            value={stopFormData.fcfs_time || ''}
                             onChange={handleStopFormChange}
                             InputLabelProps={{
                               shrink: true,
                             }}
-                            helperText="Start time of the interval"
+                            helperText="Select start time (24-hour format)"
                             // Disable if appointment date is filled
-                            disabled={!!stopFormData.appointmentdate}
+                            disabled={!!(stopFormData.appointmentdate_date || stopFormData.appointmentdate_time)}
+                            size="medium"
+                          />
+                        </Grid>
+                        
+                        {/* FCFS To Row */}
+                        <Grid item xs={12}>
+                          <Typography variant="subtitle2" sx={{ mb: 1, color: 'text.secondary' }}>
+                            FCFS To (First Come, First Served - End)
+                          </Typography>
+                        </Grid>
+                        <Grid item xs={12} md={6}>
+                          <TextField
+                            fullWidth
+                            label="FCFS To Date"
+                            name="plus_hour_date"
+                            type="date"
+                            value={stopFormData.plus_hour_date || ''}
+                            onChange={handleStopFormChange}
+                            InputLabelProps={{
+                              shrink: true,
+                            }}
+                            helperText="Select end date"
+                            // Disable if appointment date is filled
+                            disabled={!!(stopFormData.appointmentdate_date || stopFormData.appointmentdate_time)}
+                            size="medium"
                           />
                         </Grid>
                         <Grid item xs={12} md={6}>
                           <TextField
                             fullWidth
-                            label="FCFS To"
-                            name="plus_hour"
-                            type="datetime-local"
-                            value={stopFormData.plus_hour || ''}
+                            label="FCFS To Time"
+                            name="plus_hour_time"
+                            type="time"
+                            value={stopFormData.plus_hour_time || ''}
                             onChange={handleStopFormChange}
                             InputLabelProps={{
                               shrink: true,
                             }}
-                            helperText="End time of the interval"
+                            helperText="Select end time (24-hour format)"
                             // Disable if appointment date is filled
-                            disabled={!!stopFormData.appointmentdate}
+                            disabled={!!(stopFormData.appointmentdate_date || stopFormData.appointmentdate_time)}
+                            size="medium"
                           />
                         </Grid>
                         {/* <Grid item xs={12}>
@@ -3652,11 +4763,33 @@ const LoadViewPage = () => {
                           <TimelineIcon fontSize={compactView ? 'small' : 'medium'} />
                         )}
                       </StopIconContainer>
+                      {/* Add stop sequence indicator */}
+                      {stop.stop_name.startsWith('Stop-') && (
+                        <Box sx={{ 
+                          position: 'absolute', 
+                          top: -8, 
+                          right: -8, 
+                          bgcolor: 'primary.main', 
+                          color: 'white', 
+                          borderRadius: '50%', 
+                          width: 20, 
+                          height: 20, 
+                          display: 'flex', 
+                          alignItems: 'center', 
+                          justifyContent: 'center',
+                          fontSize: '0.7rem',
+                          fontWeight: 'bold',
+                          zIndex: 1,
+                          boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+                        }}>
+                          {stop.stop_name.match(/Stop-(\d+)/)?.[1] || ''}
+                        </Box>
+                      )}
                       <StopDetails>
                         <StopHeader>
                           <Box sx={{ display: 'flex', alignItems: 'center' }}>
                             <StopAddress>
-                              {stop.stop_name === "PICKUP" ? "Pickup" : 
+                              {stop.stop_name === "PICKUP" ? "Pick Up" : 
                                stop.stop_name === "DELIVERY" ? "Delivery" : 
                                stop.stop_name}
                             </StopAddress>
@@ -3669,29 +4802,11 @@ const LoadViewPage = () => {
                             </IconButton>
                           </Box>
                           <StopDate>
-                            {stop.appointmentdate ? new Date(stop.appointmentdate).toLocaleString('en-US', {
-                              month: 'short',
-                              day: 'numeric',
-                              hour: 'numeric',
-                              minute: 'numeric',
-                              hour12: true
-                            }) : stop.fcfs ? (
+                            {stop.appointmentdate ? formatTimeForDisplay(stop.appointmentdate) : stop.fcfs ? (
                               <Box sx={{ display: 'flex', alignItems: 'center' }}>
                                 <Typography variant="caption">
-                                  FCFS: {new Date(stop.fcfs).toLocaleString('en-US', {
-                                    month: 'short',
-                                    day: 'numeric',
-                                    hour: 'numeric',
-                                    minute: 'numeric',
-                                    hour12: true
-                                  })}
-                                  {stop.plus_hour ? ` - ${new Date(stop.plus_hour).toLocaleString('en-US', {
-                                    month: 'short',
-                                    day: 'numeric',
-                                    hour: 'numeric',
-                                    minute: 'numeric',
-                                    hour12: true
-                                  })}` : ''}
+                                  FCFS: {formatTimeForDisplay(stop.fcfs)}
+                                  {stop.plus_hour ? ` - ${formatTimeForDisplay(stop.plus_hour)}` : ''}
                                 </Typography>
                               </Box>
                             ) : "Not specified"}
@@ -3718,22 +4833,8 @@ const LoadViewPage = () => {
                             {/* Display FCFS information in expanded view */}
                             {stop.fcfs && (
                               <Typography variant="caption" color="text.secondary" display="block">
-                                FCFS: {new Date(stop.fcfs).toLocaleString('en-US', {
-                                  weekday: 'short',
-                                  month: 'short',
-                                  day: 'numeric',
-                                  hour: 'numeric',
-                                  minute: 'numeric',
-                                  hour12: true
-                                })}
-                                {stop.plus_hour ? ` - ${new Date(stop.plus_hour).toLocaleString('en-US', {
-                                  weekday: 'short',
-                                  month: 'short',
-                                  day: 'numeric',
-                                  hour: 'numeric',
-                                  minute: 'numeric',
-                                  hour12: true
-                                })}` : ''}
+                                FCFS: {formatTimeForDisplay(stop.fcfs)}
+                                {stop.plus_hour ? ` - ${formatTimeForDisplay(stop.plus_hour)}` : ''}
                               </Typography>
                             )}
                           </>
@@ -3750,17 +4851,44 @@ const LoadViewPage = () => {
                       )}
                     </StopItem>
                   )
-                ))
-              ) : (
-                !isAddingStop && (
-                  <Box sx={{ textAlign: 'center', p: 3, color: 'text.secondary' }}>
-                    <Typography variant="body2">No stops added yet</Typography>
+                )).map((stop, index, array) => (
+                    <React.Fragment key={stop.id}>
+                      {stop}
+                      {/* Add visual separator between stops */}
+                      {index < array.length - 1 && (
+                        <Box sx={{ 
+                          height: 2, 
+                          bgcolor: 'divider', 
+                          mx: 2, 
+                          my: 1, 
+                          borderRadius: 1 
+                        }} />
+                      )}
+                    </React.Fragment>
+                  ))
+                              ) : (
+                !isAddingStop && !isStopsLoading && !stopsError && (
+                  <Box sx={{ 
+                    textAlign: 'center', 
+                    p: 4, 
+                    color: 'text.secondary',
+                    border: '2px dashed',
+                    borderColor: 'divider',
+                    borderRadius: 2,
+                    mx: 2
+                  }}>
+                    <LocalShippingIcon sx={{ fontSize: 40, mb: 2, opacity: 0.5 }} />
+                    <Typography variant="body1" gutterBottom>
+                      No stops configured yet
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                      Add pickup, delivery, and intermediate stops to define your route
+                    </Typography>
                     <Button 
-                      variant="outlined" 
-                      size="small" 
+                      variant="contained" 
+                      size="medium" 
                       startIcon={<AddIcon />}
                       onClick={handleAddStop}
-                      sx={{ mt: 1 }}
                     >
                       Add First Stop
                     </Button>
@@ -4139,145 +5267,271 @@ const LoadViewPage = () => {
               width: '100%',
               gap: 2
             }}>
-              <Typography variant="h6">Chat</Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, minWidth: 'fit-content' }}>
+                <Typography variant="h6">Chat</Typography>
+                {/* Socket.IO Connection Status */}
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                  <Box
+                    sx={{
+                      width: 6,
+                      height: 6,
+                      borderRadius: '50%',
+                      backgroundColor: isSocketConnected ? '#10B981' : isSocketConnecting ? '#F59E0B' : '#6B7280',
+                      animation: (isSocketConnected || isSocketConnecting) ? 'pulse 2s infinite' : 'none',
+                      '@keyframes pulse': {
+                        '0%': { opacity: 1 },
+                        '50%': { opacity: 0.5 },
+                        '100%': { opacity: 1 }
+                      }
+                    }}
+                  />
+                  <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
+                    {isSocketConnected ? 'Real-time' : isSocketConnecting ? 'Connecting...' : 'HTTP API'}
+                  </Typography>
+                </Box>
+              </Box>
               
-              {!isLoadDataLoading && (
+              {/* Typing Indicators */}
+              {typingUsers.length > 0 && (
                 <Box sx={{ 
                   display: 'flex', 
-                  gap: 2,
-                  flex: 1,
-                  overflowX: 'auto',
-                  '&::-webkit-scrollbar': {
-                    height: '4px',
-                  },
-                  '&::-webkit-scrollbar-track': {
-                    background: '#f1f1f1',
-                  },
-                  '&::-webkit-scrollbar-thumb': {
-                    background: '#888',
-                    borderRadius: '2px',
-                  },
-                  '&::-webkit-scrollbar-thumb:hover': {
-                    background: '#555',
+                  alignItems: 'center', 
+                  gap: 0.5,
+                  px: 1,
+                  py: 0.25,
+                  bgcolor: 'rgba(25, 118, 210, 0.08)',
+                  borderRadius: 4,
+                  position: 'absolute',
+                  bottom: 'calc(100% + 8px)',
+                  left: '50%',
+                  transform: 'translateX(-50%)',
+                  zIndex: 2,
+                  backdropFilter: 'blur(4px)',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+                  animation: 'fadeIn 0.3s ease-in-out',
+                  '@keyframes fadeIn': {
+                    '0%': {
+                      opacity: 0,
+                      transform: 'translate(-50%, 10px)'
+                    },
+                    '100%': {
+                      opacity: 1,
+                      transform: 'translate(-50%, 0)'
+                    }
                   }
                 }}>
-                  <StatusSelector>
-                    <Select
-                      value={load?.load_status || 'OPEN'}
-                      onChange={handleStatusChange}
-                      disabled={isUpdatingStatus}
-                      sx={{
-                        height: 36,
-                        width: { xs: 150, sm: 180 },
-                        '.MuiSelect-select': {
-                          display: 'flex',
-                          alignItems: 'center',
-                          paddingY: 0.5,
-                          whiteSpace: 'nowrap'
-                        }
-                      }}
-                      MenuProps={{
-                        PaperProps: {
-                          sx: { maxHeight: 400 }
-                        }
-                      }}
-                      renderValue={(selected) => {
-                        const option = loadStatusOptions.find(opt => opt.value === selected);
-                        return (
-                          <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                            <StatusIconContainer color={option?.color}>
-                              {option?.icon}
-                            </StatusIconContainer>
-                            <Typography variant="body2" fontWeight={500}>
-                              {option?.label || 'Status'}
-                            </Typography>
-                          </Box>
-                        );
-                      }}
-                    >
-                      {loadStatusOptions.map((option) => (
-                        <MenuItem key={option.value} value={option.value}>
-                          <Box sx={{ display: 'flex', alignItems: 'center', width: '100%' }}>
-                            <StatusIconContainer color={option.color}>
-                              {option.icon}
-                            </StatusIconContainer>
-                            <Typography variant="body2">
-                              {option.label}
-                            </Typography>
-                          </Box>
-                        </MenuItem>
-                      ))}
-                    </Select>
-                  </StatusSelector>
-
-                  <StatusSelector>
-                    <Select
-                      value={load?.invoice_status || 'NOT_DETERMINED'}
-                      onChange={handleInvoiceStatusChange}
-                      disabled={isUpdatingStatus}
-                      sx={{
-                        height: 36,
-                        width: { xs: 150, sm: 180 },
-                        '.MuiSelect-select': {
-                          display: 'flex',
-                          alignItems: 'center',
-                          paddingY: 0.5,
-                          whiteSpace: 'nowrap'
-                        }
-                      }}
-                      MenuProps={{
-                        PaperProps: {
-                          sx: { maxHeight: 400 }
-                        }
-                      }}
-                      renderValue={(selected) => {
-                        const option = invoiceStatusOptions.find(opt => opt.value === selected);
-                        return (
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                            <Box
-                              sx={{
-                                width: 8,
-                                height: 8,
-                                borderRadius: '50%',
-                                backgroundColor: option?.color || '#9CA3AF'
-                              }}
-                            />
-                            <Typography variant="body2" fontWeight={500}>
-                              {option?.label || 'Not Determined'}
-                            </Typography>
-                          </Box>
-                        );
-                      }}
-                    >
-                      {invoiceStatusOptions.map((option) => (
-                        <MenuItem key={option.value} value={option.value}>
-                          <Box sx={{ display: 'flex', alignItems: 'center', width: '100%', gap: 1 }}>
-                            <Box
-                              sx={{
-                                width: 8,
-                                height: 8,
-                                borderRadius: '50%',
-                                backgroundColor: option.color
-                              }}
-                            />
-                            <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                              {option.label}
-                            </Typography>
-                          </Box>
-                        </MenuItem>
-                      ))}
-                    </Select>
-                  </StatusSelector>
+                  <Box sx={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    gap: 0.5,
+                    animation: 'bounce 1.4s infinite',
+                    '@keyframes bounce': {
+                      '0%, 80%, 100%': { transform: 'scale(0.6)' },
+                      '40%': { transform: 'scale(1.0)' }
+                    }
+                  }}>
+                    <CircleIcon sx={{ fontSize: 4, color: 'primary.main' }} />
+                    <CircleIcon sx={{ 
+                      fontSize: 4, 
+                      color: 'primary.main',
+                      animationDelay: '0.2s'
+                    }} />
+                    <CircleIcon sx={{ 
+                      fontSize: 4, 
+                      color: 'primary.main',
+                      animationDelay: '0.4s'
+                    }} />
+                  </Box>
+                  <Typography variant="caption" sx={{ 
+                    color: 'text.secondary',
+                    fontSize: '0.75rem',
+                    fontWeight: 500
+                  }}>
+                    {typingUsers.length === 1 
+                      ? `${usersData[typingUsers[0].userId]?.first_name || 'Someone'} is typing...`
+                      : `${typingUsers.length} people are typing...`
+                    }
+                  </Typography>
                 </Box>
               )}
               
-              <IconButton onClick={handleRefreshChat} disabled={isChatLoading}>
-                {isChatLoading ? (
-                  <CircularProgress size={24} thickness={4} />
-                ) : (
-                  <RefreshIcon />
+              {!isLoadDataLoading && (
+                <Box sx={{ 
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 1,
+                  ml: 2
+                }}>
+                  {/* Load Status Button */}
+                  <Tooltip title="Change Load Status">
+                    <Button
+                      variant="outlined"
+                      size="small"
+                      onClick={(e) => setLoadStatusAnchor(e.currentTarget)}
+                      disabled={isUpdatingStatus}
+                      sx={{
+                        minWidth: 'auto',
+                        px: 1,
+                        py: 0.5,
+                        borderColor: 'divider',
+                        gap: 0.5,
+                        height: 28
+                      }}
+                    >
+                      <Box sx={{
+                        width: 6,
+                        height: 6,
+                        borderRadius: '50%',
+                        bgcolor: loadStatusOptions.find(opt => opt.value === (load?.load_status || 'OPEN'))?.color || 'grey.400'
+                      }} />
+                      <Typography variant="caption" sx={{ fontWeight: 500, fontSize: '0.7rem' }}>
+                        {loadStatusOptions.find(opt => opt.value === (load?.load_status || 'OPEN'))?.shortLabel || 'Status'}
+                      </Typography>
+                    </Button>
+                  </Tooltip>
+
+                  {/* Invoice Status Button */}
+                  <Tooltip title="Change Invoice Status">
+                    <Button
+                      variant="outlined"
+                      size="small"
+                      onClick={(e) => setInvoiceStatusAnchor(e.currentTarget)}
+                      disabled={isUpdatingStatus}
+                      sx={{
+                        minWidth: 'auto',
+                        px: 1,
+                        py: 0.5,
+                        borderColor: 'divider',
+                        gap: 0.5,
+                        height: 28
+                      }}
+                    >
+                      <Box sx={{
+                        width: 6,
+                        height: 6,
+                        borderRadius: '50%',
+                        bgcolor: invoiceStatusOptions.find(opt => opt.value === (load?.invoice_status || 'NOT_DETERMINED'))?.color || 'grey.400'
+                      }} />
+                      <Typography variant="caption" sx={{ fontWeight: 500, fontSize: '0.7rem' }}>
+                        {invoiceStatusOptions.find(opt => opt.value === (load?.invoice_status || 'NOT_DETERMINED'))?.shortLabel || 'Invoice'}
+                      </Typography>
+                    </Button>
+                  </Tooltip>
+
+                  {/* Load Status Menu */}
+                  <Menu
+                    anchorEl={loadStatusAnchor}
+                    open={Boolean(loadStatusAnchor)}
+                    onClose={() => setLoadStatusAnchor(null)}
+                    PaperProps={{
+                      sx: { 
+                        minWidth: 180,
+                        boxShadow: theme => theme.shadows[3],
+                        borderRadius: 1
+                      }
+                    }}
+                  >
+                    {loadStatusOptions.map((option) => (
+                      <MenuItem 
+                        key={option.value} 
+                        onClick={() => {
+                          handleStatusChange({ target: { value: option.value } });
+                          setLoadStatusAnchor(null);
+                        }}
+                        sx={{ 
+                          py: 1,
+                          minHeight: 'auto',
+                          '&:hover': {
+                            bgcolor: 'action.hover'
+                          }
+                        }}
+                      >
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <StatusIconContainer color={option.color} sx={{ width: 24, height: 24 }}>
+                            {option.icon}
+                          </StatusIconContainer>
+                          <Typography variant="body2">
+                            {option.label}
+                          </Typography>
+                        </Box>
+                      </MenuItem>
+                    ))}
+                  </Menu>
+
+                  {/* Invoice Status Menu */}
+                  <Menu
+                    anchorEl={invoiceStatusAnchor}
+                    open={Boolean(invoiceStatusAnchor)}
+                    onClose={() => setInvoiceStatusAnchor(null)}
+                    PaperProps={{
+                      sx: { 
+                        minWidth: 180,
+                        boxShadow: theme => theme.shadows[3],
+                        borderRadius: 1
+                      }
+                    }}
+                  >
+                    {invoiceStatusOptions.map((option) => (
+                      <MenuItem 
+                        key={option.value} 
+                        onClick={() => {
+                          handleInvoiceStatusChange({ target: { value: option.value } });
+                          setInvoiceStatusAnchor(null);
+                        }}
+                        sx={{ 
+                          py: 1,
+                          minHeight: 'auto',
+                          '&:hover': {
+                            bgcolor: 'action.hover'
+                          }
+                        }}
+                      >
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <Box sx={{
+                            width: 8,
+                            height: 8,
+                            borderRadius: '50%',
+                            bgcolor: option.color
+                          }} />
+                          <Typography variant="body2">
+                            {option.label}
+                          </Typography>
+                        </Box>
+                      </MenuItem>
+                    ))}
+                  </Menu>
+                </Box>
+              )}
+              
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                {/* Socket.IO Connection Status */}
+                {socketConnectionError && (
+                  <Alert 
+                    severity="info" 
+                    sx={{ fontSize: '0.75rem', py: 0 }}
+                    action={
+                      <Button 
+                        size="small" 
+                        color="inherit" 
+                        onClick={handleReconnectSocket}
+                        sx={{ fontSize: '0.7rem', minWidth: 'auto', px: 1 }}
+                      >
+                        Try Real-time
+                      </Button>
+                    }
+                  >
+                    Using HTTP API
+                  </Alert>
                 )}
-              </IconButton>
+                
+                <IconButton onClick={handleRefreshChat} disabled={isChatLoading}>
+                  {isChatLoading ? (
+                    <CircularProgress size={24} thickness={4} />
+                  ) : (
+                    <RefreshIcon />
+                  )}
+                </IconButton>
+              </Box>
             </Box>
           </PanelHeader>
           
@@ -4285,34 +5539,37 @@ const LoadViewPage = () => {
             flex: 1, 
             display: 'flex', 
             flexDirection: 'column',
-            backgroundColor: "#f8f9fa",
+            backgroundColor: "#ffffff",
             borderRadius: theme => theme.spacing(1),
             margin: theme => theme.spacing(0, 2),
             position: 'relative',
-            overflow: 'hidden'
+            overflow: 'hidden',
+            boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.05)'
           }}>
             <ChatBackgroundOverlay />
             <ChatContentWrapper>
               <Box sx={{ 
-                padding: 2,
+                px: 2,
+                py: 1.5,
                 flex: 1,
                 display: 'flex',
                 flexDirection: 'column',
                 overflowY: 'auto',
                 position: 'relative',
                 '&::-webkit-scrollbar': {
-                  width: '6px',
+                  width: '4px',
                 },
                 '&::-webkit-scrollbar-track': {
-                  background: '#f1f1f1',
+                  background: 'transparent',
                 },
                 '&::-webkit-scrollbar-thumb': {
-                  background: '#888',
-                  borderRadius: '3px',
+                  background: 'rgba(0,0,0,0.2)',
+                  borderRadius: '4px',
                 },
                 '&::-webkit-scrollbar-thumb:hover': {
-                  background: '#555',
-                }
+                  background: 'rgba(0,0,0,0.3)',
+                },
+                gap: 1.5
               }} ref={chatContainerRef}>
                 {isChatLoading && chatMessages.length === 0 ? (
                   <Box sx={{ 
@@ -4412,8 +5669,15 @@ const LoadViewPage = () => {
                 fullWidth
                 placeholder={editingMessage ? "Edit your message..." : "Type a message..."}
                 value={newMessage}
-                onChange={(e) => setNewMessage(e.target.value)}
+                onChange={(e) => handleTyping(e.target.value)}
                 onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
+                onBlur={() => {
+                  // Emit stopped typing event
+                  const userId = parseInt(localStorage.getItem("userid"));
+                  if (userId && isSocketConnected) {
+                    chatSocketService.emitStoppedTyping(userId, parseInt(id));
+                  }
+                }}
                 onPaste={handlePaste}
                 size="small"
                 variant="outlined"
@@ -4423,7 +5687,7 @@ const LoadViewPage = () => {
                       <IconButton 
                         onClick={() => setShowEmojiPicker(!showEmojiPicker)}
                         size="small"
-              color="primary"
+                        color="primary"
                       >
                         <CiDeliveryTruck size={20} />
                       </IconButton>
@@ -4457,7 +5721,7 @@ const LoadViewPage = () => {
               })
               .catch(error => {
                 console.error("Error fetching load data:", error);
-                showSnackbar("Ma'lumotlarni yangilashda xatolik yuz berdi", "error");
+                showSnackbar("Error updating data", "error");
               })
               .finally(() => {
                 setIsLoadDataLoading(false);
@@ -4516,6 +5780,35 @@ const LoadViewPage = () => {
                       value={editFormData.reference_id}
                       onChange={handleFormChange}
                     />
+                    
+                    <TextField
+                      fullWidth
+                      size="small"
+                      label="Weight"
+                      name="weight"
+                      type="text"
+                      inputProps={{
+                        pattern: "^-?\\d{0,8}(?:\\.\\d{0,2})?$"
+                      }}
+                      value={editFormData.weight || ''}
+                      onChange={handleFormChange}
+                      helperText="Format: Up to 8 digits with optional 2 decimal places"
+                    />
+
+                    <TextField
+                      fullWidth
+                      size="small"
+                      label="Weight"
+                      name="weight"
+                      type="text"
+                      inputProps={{
+                        pattern: "^-?\\d{0,8}(?:\\.\\d{0,2})?$"
+                      }}
+                      value={editFormData.weight || ''}
+                      onChange={handleFormChange}
+                      helperText="Format: Up to 8 digits with optional 2 decimal places"
+                    />
+                    
                     <TextField
                       fullWidth
                       size="small"
@@ -4540,7 +5833,7 @@ const LoadViewPage = () => {
                           {...params}
                           label="Unit Number"
                           size="small"
-                          helperText="Unit tanlanganda truck, trailer va driver ma'lumotlari avtomatik to'ldiriladi"
+                          helperText="When a unit is selected, truck, trailer and driver information will be automatically filled"
                         />
                       )}
                     />
@@ -4588,7 +5881,17 @@ const LoadViewPage = () => {
                       <DetailLabel>Reference ID</DetailLabel>
                       <DetailValue>{load.reference_id || "Not assigned"}</DetailValue>
                     </DetailItem>
+
+                    <DetailItem>
+                      <DetailLabel>Weight</DetailLabel>
+                      <DetailValue>{load.weight || "Not assigned"}</DetailValue>
+                    </DetailItem>
                     
+                    <DetailItem>
+                      <DetailLabel>Weight</DetailLabel>
+                      <DetailValue>{load.weight || "Not assigned"}</DetailValue>
+                    </DetailItem>
+
                     <DetailItem>
                       <DetailLabel>Company</DetailLabel>
                       <DetailValue>{load.company_name || "Not assigned"}</DetailValue>
@@ -4810,7 +6113,7 @@ const LoadViewPage = () => {
                       </IconButton>
                     </Box>
                     
-                    {/* Agar unit tanlangan bo'lsa, unitdan truck ma'lumotlarini ko'rsatish */}
+                    {/* If unit is selected, show truck information from the unit */}
                     {editFormData.unit_id && (
                       (() => {
                         const selectedUnit = units.find(unit => unit.id === editFormData.unit_id);
@@ -4868,7 +6171,7 @@ const LoadViewPage = () => {
                       </IconButton>
                     </Box>
                     
-                    {/* Agar unit tanlangan bo'lsa, unitdan trailer ma'lumotlarini ko'rsatish */}
+                    {/* If unit is selected, show trailer information from the unit */}
                     {editFormData.unit_id && (
                       (() => {
                         const selectedUnit = units.find(unit => unit.id === editFormData.unit_id);
@@ -4956,7 +6259,7 @@ const LoadViewPage = () => {
                         </DetailItem>
                       </>
                     ) : load.unit_id ? (
-                      // Agar unit tanlangan bo'lsa, unitdan truck ma'lumotlarini ko'rsatish
+                      // If unit is selected, show truck information from the unit
                       (() => {
                         const selectedUnit = units.find(unit => unit.id === load.unit_id);
                         if (selectedUnit && selectedUnit.truck && selectedUnit.truck.length > 0) {
@@ -5626,6 +6929,36 @@ const LoadViewPage = () => {
                       </Box>
                     </Box>
                     
+                    {/* Pictures */}
+                    <Box>
+                      <Typography variant="subtitle2" sx={{ mb: 1 }}>
+                        Pictures
+                      </Typography>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <TextField 
+                          fullWidth
+                          disabled
+                          size="small"
+                          placeholder="No file selected"
+                          value={load.pictures ? 'Pictures Document' : ''}
+                        />
+                        <Button
+                          variant="outlined"
+                          component="label"
+                          size="small"
+                        >
+                          Browse
+                          <input
+                            type="file"
+                            hidden
+                            onChange={(e) => handleFileUpload(e, 'pictures')}
+                            accept="image/*"
+                            multiple
+                          />
+                        </Button>
+                      </Box>
+                    </Box>
+
                     <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 2 }}>
                       <Button 
                         variant="outlined" 
@@ -5659,7 +6992,7 @@ const LoadViewPage = () => {
                           <IconButton size="small" onClick={() => handleViewFile(load.rate_con, 'Rate Con')}>
                             <Visibility fontSize="small" />
                           </IconButton>
-                          <IconButton size="small" onClick={() => downloadFile(load.rate_con, 'rate_con')}>
+                          <IconButton size="small" onClick={() => downloadFile(load.rate_con)}>
                             <GetApp fontSize="small" />
                           </IconButton>
                         </FileActions>
@@ -5705,7 +7038,7 @@ const LoadViewPage = () => {
                           <IconButton size="small" onClick={() => handleViewFile(load.bol, 'BOL')}>
                             <Visibility fontSize="small" />
                           </IconButton>
-                          <IconButton size="small" onClick={() => downloadFile(load.bol, 'bol')}>
+                          <IconButton size="small" onClick={() => downloadFile(load.bol)}>
                             <GetApp fontSize="small" />
                           </IconButton>
                         </FileActions>
@@ -5751,7 +7084,7 @@ const LoadViewPage = () => {
                           <IconButton size="small" onClick={() => handleViewFile(load.pod, 'POD')}>
                             <Visibility fontSize="small" />
                           </IconButton>
-                          <IconButton size="small" onClick={() => downloadFile(load.pod, 'pod')}>
+                          <IconButton size="small" onClick={() => downloadFile(load.pod)}>
                             <GetApp fontSize="small" />
                           </IconButton>
                         </FileActions>
@@ -5797,7 +7130,7 @@ const LoadViewPage = () => {
                           <IconButton size="small" onClick={() => handleViewFile(load.comercial_invoice, 'Invoice')}>
                             <Visibility fontSize="small" />
                           </IconButton>
-                          <IconButton size="small" onClick={() => downloadFile(load.comercial_invoice, 'comercial_invoice')}>
+                          <IconButton size="small" onClick={() => downloadFile(load.comercial_invoice)}>
                             <GetApp fontSize="small" />
                           </IconButton>
                         </FileActions>
@@ -5818,6 +7151,54 @@ const LoadViewPage = () => {
                             type="file"
                             hidden
                             onChange={(e) => handleFileUpload(e, 'comercial_invoice')}
+                          />
+                        </EmptyFilesMessage>
+                      </Box>
+                    )}
+
+                    {/* Pictures */}
+                    <Typography variant="subtitle2" sx={{ mt: 2, mb: 1, fontWeight: 600, fontSize: '0.85rem' }}>
+                      Pictures
+                    </Typography>
+                    
+                    {load.pictures ? (
+                      <FileItem>
+                        <FileIcon fileType="image">
+                          <Image />
+                        </FileIcon>
+                        
+                        <FileDetails>
+                          <FileName>Load Pictures</FileName>
+                          <FileInfo>Added on {new Date().toLocaleDateString()}</FileInfo>
+                        </FileDetails>
+                        
+                        <FileActions>
+                          <IconButton size="small" onClick={() => handleViewFile(load.pictures, 'Pictures')}>
+                            <Visibility fontSize="small" />
+                          </IconButton>
+                          <IconButton size="small" onClick={() => downloadFile(load.pictures)}>
+                            <GetApp fontSize="small" />
+                          </IconButton>
+                        </FileActions>
+                      </FileItem>
+                    ) : (
+                      <Box component="label" sx={{ cursor: 'pointer', display: 'block' }}>
+                        <EmptyFilesMessage>
+                          <Image />
+                          <Typography variant="body2">No Pictures uploaded</Typography>
+                          <Button 
+                            variant="text" 
+                            size="small" 
+                            sx={{ mt: 0.5, fontSize: '0.75rem' }}
+                          >
+                            Upload Pictures
+                          </Button>
+                          <input
+                            type="file"
+                            hidden
+                            onChange={(e) => handleFileUpload(e, 'pictures')}
+                            accept="image/*"
+                            multiple
                           />
                         </EmptyFilesMessage>
                       </Box>

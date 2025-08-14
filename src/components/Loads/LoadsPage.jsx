@@ -172,7 +172,12 @@ const CreateLoadModal = ({ open, onClose, onCreateSuccess }) => {
   };
 
   const handleCreateLoad = async () => {
-    if (!loadData.load_id || !loadData.customer_broker) {
+    // Validate required fields
+    if (!loadData.unit_id) {
+      setError('Unit selection is required');
+      return;
+    }
+    if (!loadData.customer_broker || !loadData.load_id) {
       setError("Load ID and Customer/Broker are required");
       return;
     }
@@ -183,7 +188,7 @@ const CreateLoadModal = ({ open, onClose, onCreateSuccess }) => {
     try {
       const response = await ApiService.postData("/load/", {
         load_id: loadData.load_id,
-        reference_id: loadData.reference_id || "", // Allow empty reference_id
+        reference_id: loadData.reference_id,
         customer_broker: loadData.customer_broker.id,
         unit_id: loadData.unit_id,
         truck: loadData.truck_id,
@@ -229,11 +234,11 @@ const CreateLoadModal = ({ open, onClose, onCreateSuccess }) => {
     }
     
     try {
-      // Convert numeric strings to numbers, but allow null for zip_code
+      // Convert numeric strings to numbers
       const formattedData = {
         ...newBroker,
         contact_number: newBroker.contact_number ? parseInt(newBroker.contact_number) : null,
-        zip_code: newBroker.zip_code || null // Allow empty or null zip_code
+        zip_code: newBroker.zip_code ? parseInt(newBroker.zip_code) : null
       };
       
       const response = await ApiService.postData("/customer_broker/", formattedData);
@@ -392,7 +397,7 @@ const CreateLoadModal = ({ open, onClose, onCreateSuccess }) => {
           <Button 
             variant="contained" 
             onClick={handleCreateLoad}
-            disabled={loading || !loadData.load_id || !loadData.customer_broker}
+            disabled={loading || !loadData.customer_broker || !loadData.load_id}
             startIcon={loading ? <CircularProgress size={20} /> : <AddIcon />}
           >
             Create Load

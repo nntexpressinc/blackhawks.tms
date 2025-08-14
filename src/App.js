@@ -1,6 +1,7 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import { Toaster } from "react-hot-toast";
+import { initializeSecurity } from "./utils/security";
 import LoginPage from "./components/Login/LoginPage";
 import DashboardPage from "./components/Dashboard/DashboardPage";
 import ProfilePage from "./components/Profile/ProfilePage";
@@ -46,61 +47,18 @@ import EmployeeViewPage from "./components/Employee/EmployeeViewPage";
 import EmployeeEditPage from "./components/Employee/EmployeeEditPage";
 import IftaPage from "./components/IFTA/IftaPage";
 import PermissionDenied from "./components/PermissionDenied";
-
-// PermissionGuard komponenti
-function PermissionGuard({ permissionKey, children }) {
-  const permissionsEnc = localStorage.getItem("permissionsEnc");
-  let permissions = {};
-  if (permissionsEnc) {
-    try {
-      permissions = JSON.parse(decodeURIComponent(escape(atob(permissionsEnc))));
-    } catch (e) {
-      permissions = {};
-    }
-  }
-  if (permissionKey && permissions[permissionKey] === false) {
-    return <PermissionDenied />;
-  }
-  return children;
-}
-
-// Helper: get first allowed route
-function getFirstAllowedRoute() {
-  const permissionsEnc = localStorage.getItem("permissionsEnc");
-  let permissions = {};
-  if (permissionsEnc) {
-    try {
-      permissions = JSON.parse(decodeURIComponent(escape(atob(permissionsEnc))));
-    } catch (e) {
-      permissions = {};
-    }
-  }
-  const sidebarRoutes = [
-    { path: "/loads", key: "loads" },
-    { path: "/truck", key: "vehicles" },
-    { path: "/trailer", key: "vehicles" },
-    { path: "/customer_broker", key: "customer_broker" },
-    { path: "/driver", key: "driver" },
-    { path: "/employee", key: "employee" },
-    { path: "/dispatcher", key: "dispatcher" },
-    { path: "/users-actives", key: "users_actives" },
-    { path: "/accounting", key: "accounting" },
-    { path: "/ifta", key: "ifta" },
-    { path: "/manage-users", key: "manage_users" },
-    { path: "/manage-units", key: "manage_units" },
-    { path: "/manage-teams", key: "manage_teams" },
-  ];
-  for (const route of sidebarRoutes) {
-    if (permissions[route.key] === true) {
-      return route.path;
-    }
-  }
-  return "/permission-denied";
-}
+import SettingsPage from "./components/Settings/SettingsPage";
 
 const App = () => {
   const { isAuthenticated: isAuth } = useAuth();
   const isAuthenticated = isAuth || localStorage.getItem("accessToken");
+
+  // Xavfsizlik sozlamalarini ishga tushirish
+  useEffect(() => {
+    if (process.env.NODE_ENV === 'production') {
+      initializeSecurity();
+    }
+  }, []);
 
   return (
     <SidebarProvider>
@@ -147,7 +105,7 @@ const App = () => {
             <Route
               path="loads/create"
               element={
-                <PermissionGuard permissionKey="load_create">
+                <PermissionGuard permissionKey="loads_create">
                   <PrivateRoute>
                     <CreateLoad />
                   </PrivateRoute>
@@ -169,7 +127,7 @@ const App = () => {
             <Route
               path="customer_broker/create"
               element={
-                <PermissionGuard permissionKey="customerbroker_create">
+                <PermissionGuard permissionKey="customer_broker_create">
                   <PrivateRoute>
                     <CustomerBrokerCreatePage />
                   </PrivateRoute>
@@ -179,7 +137,7 @@ const App = () => {
             <Route
               path="customer_broker/:id"
               element={
-                <PermissionGuard permissionKey="customerbroker_view">
+                <PermissionGuard permissionKey="customer_broker_view">
                   <PrivateRoute>
                     <CustomerBrokerViewPage />
                   </PrivateRoute>
@@ -189,7 +147,7 @@ const App = () => {
             <Route
               path="customer_broker/:id/edit"
               element={
-                <PermissionGuard permissionKey="customerbroker_update">
+                <PermissionGuard permissionKey="customer_broker_edit">
                   <PrivateRoute>
                     <CustomerBrokerEditPage />
                   </PrivateRoute>
@@ -229,7 +187,7 @@ const App = () => {
             <Route
               path="driver/:id/edit"
               element={
-                <PermissionGuard permissionKey="driver_update">
+                <PermissionGuard permissionKey="driver_edit">
                   <PrivateRoute>
                     <DriverEditPage />
                   </PrivateRoute>
@@ -249,7 +207,7 @@ const App = () => {
             <Route
               path="driver/:id/pay/:payId/edit"
               element={
-                <PermissionGuard permissionKey="driver_pay_update">
+                <PermissionGuard permissionKey="driver_pay_edit">
                   <PrivateRoute>
                     <DriverPayEditPage />
                   </PrivateRoute>
@@ -269,13 +227,14 @@ const App = () => {
             <Route
               path="driver/:id/expense/:expenseId/edit"
               element={
-                <PermissionGuard permissionKey="driver_expense_update">
+                <PermissionGuard permissionKey="driver_expense_edit">
                   <PrivateRoute>
                     <DriverExpenseEditPage />
                   </PrivateRoute>
                 </PermissionGuard>
               }
             />
+
             <Route
               path="dispatcher"
               element={
@@ -309,7 +268,7 @@ const App = () => {
             <Route
               path="dispatcher/edit/:id"
               element={
-                <PermissionGuard permissionKey="dispatcher_update">
+                <PermissionGuard permissionKey="dispatcher_edit">
                   <PrivateRoute>
                     <DispatcherEditPage />
                   </PrivateRoute>
@@ -359,7 +318,7 @@ const App = () => {
             <Route
               path="employee/edit/:id"
               element={
-                <PermissionGuard permissionKey="employee_update">
+                <PermissionGuard permissionKey="employee_edit">
                   <PrivateRoute>
                     <EmployeeEditPage />
                   </PrivateRoute>
@@ -379,7 +338,7 @@ const App = () => {
             <Route
               path="truck"
               element={
-                <PermissionGuard permissionKey="vehicles">
+                <PermissionGuard permissionKey="truck">
                   <PrivateRoute>
                     <TruckTrailerPage type="truck" />
                   </PrivateRoute>
@@ -389,7 +348,7 @@ const App = () => {
             <Route
               path="trailer"
               element={
-                <PermissionGuard permissionKey="vehicles">
+                <PermissionGuard permissionKey="trailer">
                   <PrivateRoute>
                     <TruckTrailerPage type="trailer" />
                   </PrivateRoute>
@@ -419,7 +378,7 @@ const App = () => {
             <Route
               path="truck/:id/edit"
               element={
-                <PermissionGuard permissionKey="truck_update">
+                <PermissionGuard permissionKey="truck_edit">
                   <PrivateRoute>
                     <TruckEdit />
                   </PrivateRoute>
@@ -449,7 +408,7 @@ const App = () => {
             <Route
               path="trailer/:id/edit"
               element={
-                <PermissionGuard permissionKey="trailer_update">
+                <PermissionGuard permissionKey="trailer_edit">
                   <PrivateRoute>
                     <TrailerEdit />
                   </PrivateRoute>
@@ -506,6 +465,24 @@ const App = () => {
                 </PermissionGuard>
               }
             />
+            <Route
+              path="ifta"
+              element={
+                <PermissionGuard permissionKey="ifta">
+                  <PrivateRoute>
+                    <IftaPage />
+                  </PrivateRoute>
+                </PermissionGuard>
+              }
+            />
+            <Route
+              path="settings"
+              element={
+                <PrivateRoute>
+                  <SettingsPage />
+                </PrivateRoute>
+              }
+            />
           </Route>
           <Route
             path="*"
@@ -519,5 +496,57 @@ const App = () => {
 
   );
 };
+
+// PermissionGuard component
+function PermissionGuard({ permissionKey, children }) {
+  const permissionsEnc = localStorage.getItem("permissionsEnc");
+  let permissions = {};
+  if (permissionsEnc) {
+    try {
+      permissions = JSON.parse(decodeURIComponent(escape(atob(permissionsEnc))));
+    } catch (e) {
+      permissions = {};
+    }
+  }
+  if (permissionKey && permissions[permissionKey] === false) {
+    return <PermissionDenied />;
+  }
+  return children;
+}
+
+// Helper to find first allowed route
+function getFirstAllowedRoute() {
+  const permissionsEnc = localStorage.getItem("permissionsEnc");
+  let permissions = {};
+  if (permissionsEnc) {
+    try {
+      permissions = JSON.parse(decodeURIComponent(escape(atob(permissionsEnc))));
+    } catch (e) {
+      permissions = {};
+    }
+  }
+  // List of sidebar routes and their permission keys (must match Sidebar.jsx)
+  const sidebarRoutes = [
+    { path: "/loads", key: "loads" },
+    { path: "/truck", key: "vehicles" },
+    { path: "/trailer", key: "vehicles" },
+    { path: "/customer_broker", key: "customer_broker" },
+    { path: "/driver", key: "driver" },
+    { path: "/employee", key: "employee" },
+    { path: "/dispatcher", key: "dispatcher" },
+    { path: "/users-actives", key: "users_actives" },
+    { path: "/accounting", key: "accounting" },
+    { path: "/manage-users", key: "manage_users" },
+    { path: "/manage-units", key: "manage_units" },
+    { path: "/manage-teams", key: "manage_teams" },
+    { path: "/ifta", key: "ifta" },
+  ];
+  for (const route of sidebarRoutes) {
+    if (permissions[route.key] === true) {
+      return route.path;
+    }
+  }
+  return "/permission-denied";
+}
 
 export default App;

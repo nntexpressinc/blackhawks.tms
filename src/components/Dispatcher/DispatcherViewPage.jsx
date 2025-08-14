@@ -91,7 +91,7 @@ const getStateFullName = (code) => {
 const getProfilePhoto = (url) => {
   if (!url) return 'https://ui-avatars.com/api/?name=User&background=random';
   if (url.startsWith('http')) return url;
-  return `https://nnt.nntexpressinc.com${url}`;
+  return `https://blackhawks.nntexpressinc.com${url}`;
 };
 
 const DispatcherViewPage = () => {
